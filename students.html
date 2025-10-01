@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Students</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="d-flex">
+
+  <!-- Sidebar -->
+    <div id="sidebar"></div>
+
+  <div class="container-fluid p-4">
+    <h2>Students</h2>
+    <form id="studentForm" class="row g-3">
+      <div class="col-md-4"><input type="text" name="student_name" placeholder="Student Name" class="form-control" required></div>
+      <div class="col-md-4"><input type="text" name="uid" placeholder="UID" class="form-control" required></div>
+      <div class="col-md-2"><button type="submit" class="btn btn-success">Add Student</button></div>
+    </form>
+
+    <table class="table mt-3" id="studentsTable">
+      <thead><tr><th>Name</th><th>UID</th><th>Assigned Schedule</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+fetch("navbar.html")
+    .then(res => res.text())
+    .then(html => {
+      document.getElementById("sidebar").innerHTML = html;
+    });
+
+
+
+
+fetch("http://18.140.43.246:5000/api/students")
+  .then(res => res.json())
+  .then(data => {
+    let tbody = document.querySelector("#studentsTable tbody");
+    data.forEach(stu => {
+      let row = `<tr>
+        <td>${stu.student_name}</td>
+        <td>${stu.uid}</td>
+        <td>${stu.schedule || "Not Assigned"}</td>
+        <td><button class="btn btn-sm btn-primary">Assign</button></td>
+      </tr>`;
+      tbody.innerHTML += row;
+    });
+  });
+</script>
+</body>
+</html>
