@@ -9,39 +9,81 @@
 <body class="d-flex">
 
   <!-- Sidebar -->
- <div id="sidebar"></div>
+  <div id="sidebar"></div>
 
   <div class="container-fluid p-4">
     <h2>Logs</h2>
-    <table id="logsTable" class="display table table-striped">
+
+    <table id="logTable" class="display" style="width:100%">
       <thead>
         <tr>
-          <th>UID</th>
-          <th>Student</th>
-          <th>Timestamp</th>
+          <th>Log ID</th>
+          <th>Student Name</th>
+          <th>Student ID</th>
+          <th>Room</th>
+          <th>Course</th>
           <th>Status</th>
+          <th>Reason</th>
+          <th>Time</th>
         </tr>
       </thead>
     </table>
   </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-<script>
-fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => { document.getElementById("sidebar").innerHTML = html; });
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script>
+    // Load sidebar
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => { document.getElementById("sidebar").innerHTML = html; });
 
+    // Initialize DataTable with safety checks + logging
+    $(document).ready(function () {
+      $('#logTable').DataTable({
+        ajax: {
+          url: 'http://18.140.43.246:5000/api/logs',
+          dataSrc: function (json) {
+            console.log('🧩 Raw response from API:', json);
 
-$('#logsTable').DataTable({
-  ajax: "http://18.140.43.246:5000/api/logs", // replace with Flask API
-  columns: [
-    { data: "uid" },
-    { data: "student_name" },
-    { data: "timestamp" },
-    { data: "status" }
-  ]
-});
-</script>
+            // Handle stringified or unexpected formats safely
+            if (typeof json === 'string') {
+              try {
+                json = JSON.parse(json);
+              } catch (err) {
+                console.error('❌ JSON parse failed:', err, json);
+                return [];
+              }
+            }
+
+            if (!Array.isArray(json)) {
+              console.error('❌ Expected array but got:', json);
+              return [];
+            }
+
+            return json;
+          },
+          error: function (xhr, status, error) {
+            console.error('❌ AJAX Error:', status, error);
+            console.log('Response text:', xhr.responseText);
+          }
+        },
+        columns: [
+          { data: 'log_id', title: 'Log ID' },
+          { data: 'student_name', title: 'Student Name' },
+          { data: 'student_id', title: 'Student ID' },
+          { data: 'room_id', title: 'Room' },
+          { data: 'course_id', title: 'Course' },
+          { data: 'status', title: 'Status' },
+          { data: 'reason', title: 'Reason' },
+          { data: 'timestamp', title: 'Time' }
+        ],
+        order: [[0, 'desc']],
+        pageLength: 10
+      });
+    });
+  </script>
+
 </body>
 </html>
