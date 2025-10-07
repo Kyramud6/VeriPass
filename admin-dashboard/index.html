@@ -9,46 +9,117 @@
 <body class="d-flex">
 
   <!-- Sidebar -->
- <div id="sidebar"></div>
+  <div id="sidebar"></div>
 
   <!-- Main Content -->
   <div class="container-fluid p-4">
-    <h2>Dashboard Overview</h2>
-    <div class="row">
-      <!-- Scanner Status Cards -->
+    <h2 class="mb-4">Dashboard Overview</h2>
+
+    <!-- Top Stats -->
+    <div class="row g-3 mb-4" id="overview-cards">
       <div class="col-md-4">
-        <div class="card text-center mb-3">
+        <div class="card text-center shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Total Students</h5>
+            <h2 id="totalStudents">--</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card text-center shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Total Logs</h5>
+            <h2 id="totalLogs">--</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card text-center shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">Today’s Scans</h5>
+            <h2 id="todayLogs">--</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scanner Status -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card text-center shadow-sm">
           <div class="card-body">
             <h5 class="card-title">Scanner Room101</h5>
-            <p>Status: <span class="badge bg-success">Online</span></p>
-            <p>Last Scan: 09:45 AM</p>
+            <p>Status: <span id="scannerStatus" class="badge bg-secondary">Loading...</span></p>
+            <p>Last Scan: <span id="lastScan">--</span></p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Chart -->
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-body">
-        <canvas id="scanChart"></canvas>
+        <h5 class="card-title mb-3">Scans This Week</h5>
+        <canvas id="scanChart" height="100"></canvas>
       </div>
     </div>
   </div>
 
-<script>
-fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => { document.getElementById("sidebar").innerHTML = html; });
+  <script>
+    // Load sidebar (navbar.html)
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => { document.getElementById("sidebar").innerHTML = html; });
 
+    // Fetch overview data from backend
+    async function loadOverview() {
+      try {
+        const res = await fetch("https:http://18.140.43.246:5000/api/overview");
+        const data = await res.json();
 
-const ctx = document.getElementById('scanChart');
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-    datasets: [{ label: 'Scans per day', data: [12, 19, 3, 5, 2] }]
-  }
-});
-</script>
+        // Update cards
+        document.getElementById("totalStudents").innerText = data.total_students ?? "--";
+        document.getElementById("totalLogs").innerText = data.total_logs ?? "--";
+        document.getElementById("todayLogs").innerText = data.today_logs ?? "--";
+
+        // Scanner status (mock or future API)
+        const status = data.scanner_status || "Online";
+        const lastScan = data.last_scan || "09:45 AM";
+
+        const badge = document.getElementById("scannerStatus");
+        badge.textContent = status;
+        badge.className = "badge " + (status === "Online" ? "bg-success" : "bg-danger");
+        document.getElementById("lastScan").innerText = lastScan;
+
+        // Chart data
+        const ctx = document.getElementById('scanChart');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+            datasets: [{
+              label: 'Scans per Day',
+              data: data.weekly_scans || [12, 19, 3, 5, 2],
+              backgroundColor: 'rgba(54, 162, 235, 0.6)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error("Failed to load overview:", err);
+      }
+    }
+
+    // Initialize dashboard
+    loadOverview();
+  </script>
 </body>
 </html>
