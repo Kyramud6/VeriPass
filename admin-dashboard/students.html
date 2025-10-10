@@ -10,44 +10,113 @@
   <!-- Sidebar -->
     <div id="sidebar"></div>
 
-  <div class="container-fluid p-4">
-    <h2>Students</h2>
-    <form id="studentForm" class="row g-3">
-      <div class="col-md-4"><input type="text" name="student_name" placeholder="Student Name" class="form-control" required></div>
-      <div class="col-md-4"><input type="text" name="uid" placeholder="UID" class="form-control" required></div>
-      <div class="col-md-2"><button type="submit" class="btn btn-success">Add Student</button></div>
-    </form>
-
-    <table class="table mt-3" id="studentsTable">
-      <thead><tr><th>Name</th><th>UID</th><th>Assigned Schedule</th><th>Action</th></tr></thead>
-      <tbody></tbody>
-    </table>
+<!--Add/Edit form-->
+<form id = "studentform" class = "row g- mb-4">
+  <input type ="hidden" id="student_id">
+  <div class = "col-md-5">
+    <label class = "form-label">Student Name</label>
+    <input type ="text" id="student_name" class="form-control" required placeholder="Enter Student's Name">
   </div>
 
+  <div class = "col-md-5">
+    <label class = "form-label">Card UID</label>
+    <input type ="text" id="card_uid" class="form-control" required placeholder="Enter card UID">
+  </div>
+
+  <div class = "col-md-2 align-self-end">
+    <button type = "submit" class = "btn btn-primary w-100">Add Student</button>
+  </div>
+</form>
+
+<!---Student table-->
+<table class = "table" id ="studentTable">
+  <thead class = "table-light">
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Card UID</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id ="studentTableBody"></tbody>
+</table>
+</div>
+
 <script>
+  //Sidebar
 fetch("navbar.html")
     .then(res => res.text())
     .then(html => {
       document.getElementById("sidebar").innerHTML = html;
     });
 
+  document.addEventListener("DOMContentLoaded", () => {
+    const route = "http://18.140.43.246:5000/api/students";
+    const form = document.getElementById("studentform");
+    const nameInput = document.getElementById("student_name");
+    const uidInput = document.getElementById("card_uid");
+    const idInput = document.getElementById("student_id");
+    const tableBody = document.getElementById("studentTableBody");
 
+    // Load student record
+    async function loadStudent() {
+      const res = await fetch (route);
+      const students = await res.json();
+      tableBody.innerHTML = "";
 
+      students.forEach (s => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+        <td>${s.student_id}</td>
+        <td>${s.name}</td>
+        <td>${s.card_uid || "-"}</td>
+        <td>
+          <button class="btn btn-sm btn-warning me-2 edit-btn" data-id="${s.student_id}" data-name="${s.name}" data-uid="${s.card_uid || ''}">Edit</button>
+            <button class="btn btn-sm btn-danger delete-btn" data-id="${s.student_id}">Delete</button>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
 
-fetch("http://18.140.43.246:5000/api/students")
-  .then(res => res.json())
-  .then(data => {
-    let tbody = document.querySelector("#studentsTable tbody");
-    data.forEach(stu => {
-      let row = `<tr>
-        <td>${stu.student_name}</td>
-        <td>${stu.uid}</td>
-        <td>${stu.schedule || "Not Assigned"}</td>
-        <td><button class="btn btn-sm btn-primary">Assign</button></td>
-      </tr>`;
-      tbody.innerHTML += row;
+// Add student
+form.addEventListener("submit", async (e) => {
+  e.preventDefault(); // prevent page reload
+
+  const name = nameInput.value.trim();
+  const carduid = uidInput.value.trim();
+
+  if (!name || !carduid) {
+    alert ("Please fill in both name and UID");
+    return;
+  }
+  const studentData = {name , card_uid};
+
+  try {
+    const res = await fetch (route , {
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify(studentData),
     });
-  });
+
+    if (res.ok) {
+      alert("Student added");
+      form.reset();
+      loadStudent();
+    } else {
+      const errText = await res.text();
+      alert ("Failed to add student" + errText);
+    }
+  } catch (error) {
+    console.error("Error adding student", error);
+    alert("Network error while adding");
+  }
+});
+
+loadStudent();
+
+});
+
 </script>
 </body>
 </html>
