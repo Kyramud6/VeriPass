@@ -79,43 +79,84 @@ fetch("navbar.html")
       });
     }
 
-// Add student
+// Add student / Update student
 form.addEventListener("submit", async (e) => {
-  e.preventDefault(); // prevent page reload
+  e.preventDefault();
 
+  const id = idInput.value.trim();
   const name = nameInput.value.trim();
-  const carduid = uidInput.value.trim();
+  const card_uid = uidInput.value.trim();
 
-  if (!name || !carduid) {
-    alert ("Please fill in both name and UID");
-    return;
-  }
-  const studentData = {name , card_uid};
+  const method = id ? "PUT" : "POST";
+  const url = id ? `${route}/${id}` : route;
 
   try {
-    const res = await fetch (route , {
-      method : "POST",
-      headers : {"Content-Type" : "application/json"},
-      body : JSON.stringify(studentData),
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, card_uid })
     });
 
     if (res.ok) {
-      alert("Student added");
+      alert(id ? "✅ Student updated successfully!" : "✅ Student added successfully!");
       form.reset();
+      idInput.value = ""; // clear hidden field
+      form.querySelector("button[type='submit']").textContent = "Add Student";
       loadStudent();
     } else {
       const errText = await res.text();
-      alert ("Failed to add student" + errText);
+      alert("❌ Failed: " + errText);
     }
-  } catch (error) {
-    console.error("Error adding student", error);
-    alert("Network error while adding");
+  } catch (err) {
+    console.error("Error submitting form:", err);
+    alert("❌ Network error");
+  }
+});
+// Edit Student Profile
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("edit-btn")) {
+    const id = e.target.dataset.id;
+    const name = e.target.dataset.name;
+    const uid = e.target.dataset.uid;
+
+    // fill input fields
+    idInput.value = id;
+    nameInput.value = name;
+    uidInput.value = uid;
+
+    // change button text to "Update"
+    form.querySelector("button[type='submit']").textContent = "Update Student";
   }
 });
 
-loadStudent();
+// Delete Student
+document.addEventListener("click", async (e) => {
+  if (e.target.classList.contains("delete-btn")) {
+    const id = e.target.dataset.id;
 
+    const confirmation = confirm("Are you sure u want delete this student from the record?");
+    if (!confirmation) return;
+
+    try {
+      const res = await fetch (`${route}/${id}`,{method:"DELETE"});
+
+      if (res.ok) {
+        alert ("Student delete successfully");
+        loadStudent();
+      } else {
+        const errText = await res.text();
+        alert ("Student can't be deleted:" , errText);
+      }
+    } catch (err) {
+      console.error ("Error deleting student", err);
+      alert("Network error while deleting student"); 
+      }
+    }
+  });
+  loadStudent();
 });
+
+
 
 </script>
 </body>
