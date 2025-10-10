@@ -7,47 +7,287 @@
 </head>
 <body class="d-flex">
 
-  <!-- Sidebar -->
   <div id="sidebar"></div>
 
   <div class="container-fluid p-4">
     <h2>Schedules</h2>
+
     <form id="scheduleForm" class="row g-3">
-      <div class="col-md-3"><input type="text" name="course_id" placeholder="Course ID" class="form-control" required></div>
-      <div class="col-md-2">
-        <select name="day_of_week" class="form-select">
-          <option>Monday</option><option>Tuesday</option>...
+      <!-- Course dropdown -->
+      <div class="col-md-3">
+        <label class="form-label">Course</label>
+        <select name="course_id" id="courseSelect" class="form-select" required>
+          <option value="">Select Course</option>
         </select>
       </div>
-      <div class="col-md-2"><input type="time" name="start_time" class="form-control"></div>
-      <div class="col-md-2"><input type="time" name="end_time" class="form-control"></div>
-      <div class="col-md-2"><select name="room_id" id="roomSelect" class="form-select"></select></div>
-      <div class="col-md-1"><button type="submit" class="btn btn-primary">Add</button></div>
+
+      <!-- Day -->
+      <div class="col-md-2">
+        <label class="form-label">Day</label>
+        <select name="day_of_week" class="form-select" required>
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+        </select>
+      </div>
+
+      <!-- Time -->
+      <div class="col-md-2">
+        <label class="form-label">Start Time</label>
+        <select name ="start_time" id ="startTime" class = "form-select" required></select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">End Time</label>
+        <select name ="end_time" id ="endTime" class = "form-select" required></select>
+      </div>
+
+      <!-- Room dropdown -->
+      <div class="col-md-2">
+        <label class="form-label">Room</label>
+        <select name="room_id" id="roomSelect" class="form-select" required>
+          <option value="">Select Room</option>
+        </select>
+      </div>
+
+      <div class="col-md-1 align-self-end">
+        <button type="submit" class="btn btn-primary w-100">Add</button>
+      </div>
     </form>
 
-    <table class="table mt-3" id="scheduleTable">
-      <thead><tr><th>Course</th><th>Day</th><th>Time</th><th>Room</th><th>Action</th></tr></thead>
+    <table class="table mt-4" id="scheduleTable">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Day</th>
+          <th>Time</th>
+          <th>Room</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
       <tbody></tbody>
     </table>
   </div>
 
 <script>
+// Load sidebar
 fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => { document.getElementById("sidebar").innerHTML = html; });
+  .then(res => res.text())
+  .then(html => { document.getElementById("sidebar").innerHTML = html; });
 
-
-fetch("http://18.140.43.246:5000/api/schedules") // Get rooms from Flask
+// Load course list
+fetch("http://18.140.43.246:5000/api/courses")
   .then(res => res.json())
-  .then(devices => {
-    let sel = document.getElementById("roomSelect");
-    devices.forEach(d => {
-      let opt = document.createElement("option");
-      opt.value = d.device_id;
-      opt.innerText = d.room_name;
-      sel.appendChild(opt);
+  .then(courses => {
+    const select = document.getElementById("courseSelect");
+    courses.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.course_id;
+      opt.textContent = `${c.course_id} - ${c.course_name}`;
+      select.appendChild(opt);
     });
   });
+
+// Load room list
+fetch("http://18.140.43.246:5000/api/rooms")
+  .then(res => res.json())
+  .then(rooms => {
+    const select = document.getElementById("roomSelect");
+    rooms.forEach(r => {
+      const opt = document.createElement("option");
+      opt.value = r.room_id;
+      opt.textContent = r.room_name;
+      select.appendChild(opt);
+    });
+  });
+
+// Generate time slot (1 hrs different each)
+function Timeslot (startHour = 8, endHour = 22) {
+  const time =[];
+  for (let h = startHour; h <= endHour; h++) {
+    const hour = String(h).padStart(2,'0');
+    time.push(`${hour}:00`);
+  }
+  return time;
+}
+
+// Dropdown 
+const startSelect = document.getElementById("startTime");
+const endSelect = document.getElementById("endTime");
+const time = Timeslot();
+// start time selection
+time.forEach(t => {
+  const opt = document.createElement("option");
+  opt.value = t;
+  opt.textContent = t;
+  startSelect.appendChild(opt);
+});
+// refresh end time option
+function updateEndTimes() {
+  const startValue = startSelect.value;
+  endSelect.innerHTML = "";
+
+// Filter: only show times after the selected start
+  const filtered = time.filter(t => t > startValue);
+
+  filtered.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    endSelect.appendChild(opt);
+  });
+
+  // Auto-select first valid end time if available
+  if (filtered.length > 0) {
+    endSelect.value = filtered[0];
+  }
+}
+
+// Initial load — set default start and end
+startSelect.value = time[0];
+updateEndTimes();
+
+// When user changes start time
+startSelect.addEventListener("change", updateEndTimes);
+
+
+// Load schedule table
+async function loadSchedules(){
+  const res = await fetch("http://18.140.43.246:5000/api/schedule");
+  const schedules = await res.json();
+  const tbody = document.querySelector("#scheduleTable tbody");
+  tbody.innerHTML ="";
+
+  schedules.forEach(s=> {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+  <td>${s.course_name}</td>
+  <td>${s.day_of_week}</td>
+  <td>${s.start_time} - ${s.end_time}</td>
+  <td>${s.room_name}</td>
+  <td>
+    <span class="badge ${s.status === "active" ? "bg-success" : "bg-secondary"}">
+      ${s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+    </span>
+  </td>
+  <td>
+    <button
+      class="btn btn-sm ${s.status === "active" ? "btn-danger" : "btn-success"} toggle-status"
+      data-id="${s.schedule_id}"
+      data-status="${s.status}"
+    >
+      ${s.status === "active" ? "Deactivate" : "Activate"}
+    </button>
+    <td>
+  <button class="btn btn-sm btn-danger delete-schedule" data-id="${s.schedule_id}">
+    Delete
+  </button>
+</td>
+  </td>
+`;
+    tbody.appendChild(row);
+  });
+}
+  
+// Call on load
+loadSchedules();
+
+
+
+// Handle Add Schedule form 
+document.getElementById("scheduleForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const formData = Object.fromEntries(new FormData(e.target).entries());
+
+  // Make sure room_id is integer
+  formData.room_id = parseInt(formData.room_id);
+
+  try {
+    const res = await fetch("http://18.140.43.246:5000/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+
+    if (res.ok) {
+      alert("✅ Schedule added successfully!");
+      e.target.reset();
+      loadSchedules(); // refresh list only
+    } else {
+      const errText = await res.text();
+      alert("❌ Failed to add schedule: " + errText);
+    }
+  } catch (error) {
+    console.error(error);
+    alert("❌ Network error while adding schedule.");
+  }
+});
+
+// Handle activate/deactivate status toggle button
+document.addEventListener("click" , async (e) => {
+  if (e.target.classList.contains ("toggle-status")){
+    const scheduleid = e.target.dataset.id;
+    const currentstatus = e.target.dataset.status;
+    const newstatus = currentstatus === "active" ? "inactive" : "active";
+
+    if (!confirm(`Change schedule to ${newstatus}?`)) return;
+    try {
+    const res = await fetch (`http://18.140.43.246:5000/api/schedule/${scheduleid}/status`, {
+      method : "PUT",
+      headers : {"Content-Type" : "application/json" },
+      body : JSON.stringify({status : newstatus}),
+    });
+
+    if (res.ok) {
+      // instand update button 
+      e.target.dataset.status = newstatus;
+      e.target.textContent = newstatus === "active" ? "Deactivate" : "Activate";
+      e.target.classList.toggle("btn-danger", newstatus === "active");
+      e.target.classList.toggle("btn-success", newstatus === "inactive");
+
+      const statuscall = e.target.closest("tr").querySelector("td:nth-last-child(2) span");
+      statuscall.textContent = newstatus.charAt(0).toUpperCase() + newstatus.slice(1);
+      statuscall.className = `badge ${newstatus === "active" ? "bg-success" : "bg-secondary"}`;
+
+      alert (`Schedule is now ${newstatus}`)
+      }else {
+        const err = await res.text();
+        alert("Failed to update status");
+      }
+    }catch (error){
+      console.error  ("Error", error) ;
+      alert ("Network down"); 
+    }
+  }
+});
+
+// Delete Button
+document.addEventListener("click", async (e) => {
+  if (e.target.classList.contains("delete-schedule")) {
+    const scheduleid = e.target.getAttribute("data-id");
+
+    if (!confirm("Are you sure u want to delete?")) return;
+
+    try {
+      const res = await fetch (`http://18.140.43.246:5000/api/schedule/${scheduleid}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert ("Schedule deleted");
+        loadSchedules();
+      } else{
+        const errText = await res.text();
+        alert ("Failed to delete schedule");
+      }
+    }
+    catch (error) {
+      console.error(error);
+      alert("Network error")
+    } 
+  }
+});
 </script>
+
 </body>
 </html>
