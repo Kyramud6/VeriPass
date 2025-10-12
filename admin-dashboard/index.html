@@ -116,47 +116,51 @@
           `;
           tbody.appendChild(tr);
         });
-
-        // Update scanner cards (assuming last log determines status)
-        const room101 = logs.find(l => l.room_id === "Room101");
-        const room102 = logs.find(l => l.room_id === "Room102");
-
-        updateScannerCard("scanner1Status", "scanner1Time", room101);
-        updateScannerCard("scanner2Status", "scanner2Time", room102);
       } catch (err) {
-        console.error("Failed to load logs:", err);
+        console.error("Failed to load logs", err);
+      }
+    }
+    // Load live scanner status
+    async function loadRoomstatus(){
+      try {
+        const res = await fetch ("http://18.140.43.246:5000/api/rooms");
+        const room = await res.json();
+
+        const room101 = rooms.find(r => r.room_id === "Room101");
+        const room102 = rooms.find(r => r.room_id === "Room102");
+
+        updateRoomstatus("scanner1status", room101?.status);
+        updatedRoomstats("scanner2status", room102?.status);
+      }catch (err) {
+        console.error("Failed to load room status", err);
       }
     }
 
-    function updateScannerCard(statusId, timeId, log) {
-      const statusEl = document.getElementById(statusId);
-      const timeEl = document.getElementById(timeId);
+    function updatedRoomstats(statusid,status){
+      const status1 = document.getElementById(statusid);
 
-      if (!log) {
-        statusEl.className = "badge bg-secondary";
-        statusEl.textContent = "Offline";
-        timeEl.textContent = "--";
-        return;
+      if (!status){
+        status1.className = "badge bg-secondary";
+        status1.textContent = "Unknown";
+        return; 
       }
-
-      const lastScan = new Date(log.timestamp);
-      const now = new Date();
-      const minutesDiff = (now - lastScan) / 1000 / 60;
-
-      if (minutesDiff < 10) {
-        statusEl.className = "badge bg-success";
-        statusEl.textContent = "Online";
+      if (status.toLowerCase() === "online") {
+        status1.className = "badge bg-success";
+        status1.textContent = "Online";
       } else {
-        statusEl.className = "badge bg-danger";
-        statusEl.textContent = "Offline";
+        status1.className = "badge bg-danger";
+        status1.textContent = "Offline";
       }
-
-      timeEl.textContent = lastScan.toLocaleTimeString();
     }
-
     // Load everything
     loadOverview();
     loadRecentActivity();
+    loadRoomstatus();
+
+    setInterval (()=> {
+      loadRecentActivity();
+      loadRoomstatus();
+    } , 15000)
   </script>
 </body>
 </html>
