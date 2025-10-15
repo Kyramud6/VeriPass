@@ -35,25 +35,24 @@
       </div>
 
       <div class="col-md-3">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5>Scanner Room101</h5>
-            <p>Status: <span id="scanner1Status" class="badge bg-secondary">Loading...</span></p>
-            <small>Last Scan: <span id="scanner1Time">--</span></small>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-3">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5>Scanner Room102</h5>
-            <p>Status: <span id="scanner2Status" class="badge bg-secondary">Loading...</span></p>
-            <small>Last Scan: <span id="scanner2Time">--</span></small>
-          </div>
-        </div>
-      </div>
+  <div class="card text-center shadow-sm">
+    <div class="card-body">
+      <h5>Scanner Lab A101</h5>
+      <p>Status: <span id="scanner1Status" class="badge bg-secondary">Loading...</span></p>
+      <button id="scanner1Toggle" class="btn btn-sm btn-secondary" disabled>Loading...</button>
     </div>
+  </div>
+</div>
+
+<div class="col-md-3">
+  <div class="card text-center shadow-sm">
+    <div class="card-body">
+      <h5>Scanner Lab A102</h5>
+      <p>Status: <span id="scanner2Status" class="badge bg-secondary">Loading...</span></p>
+      <button id="scanner2Toggle" class="btn btn-sm btn-secondary" disabled>Loading...</button>
+    </div>
+  </div>
+</div>
 
     <!-- Recent Activity Table -->
     <div class="card shadow-sm">
@@ -126,32 +125,66 @@
         const res = await fetch ("http://18.140.43.246:5000/api/rooms");
         const room = await res.json();
 
-        const room101 = rooms.find(r => r.room_id === "Room101");
-        const room102 = rooms.find(r => r.room_id === "Room102");
+        const room101 = room.find(r => r.room_name === "Lab A101");
+        const room102 = room.find(r => r.room_name === "Lab A102");
 
-        updateRoomstatus("scanner1status", room101?.status);
-        updatedRoomstats("scanner2status", room102?.status);
+        updateRoomstatus("scanner1Status",room101?.status);
+        updateRoomstatus("scanner2Status",room102?.status);
+        updateToggleButton("scanner1Toggle",room101);
+        updateToggleButton("scanner2Toggle",room102);
       }catch (err) {
         console.error("Failed to load room status", err);
       }
+    }  
+
+  // --- Update room status display ---
+  function updateRoomstatus(elementId, status) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (!status) {
+      el.className = "badge bg-secondary";
+      el.textContent = "Unknown";
+      return;
     }
 
-    function updatedRoomstats(statusid,status){
-      const status1 = document.getElementById(statusid);
+    if (status.toLowerCase() === "online") {
+      el.className = "badge bg-success";
+      el.textContent = "Online";
+    } else {
+      el.className = "badge bg-danger";
+      el.textContent = "Offline";
+    }
+  }
 
-      if (!status){
-        status1.className = "badge bg-secondary";
-        status1.textContent = "Unknown";
-        return; 
-      }
-      if (status.toLowerCase() === "online") {
-        status1.className = "badge bg-success";
-        status1.textContent = "Online";
+  // --- Toggle scanner API call ---
+function updateToggleButton(buttonId, room) {
+  const btn = document.getElementById(buttonId);
+  if (!btn || !room) return;
+
+  btn.textContent = room.status === "online" ? "Turn Off" : "Turn On";
+  btn.className = `btn btn-sm ${room.status === "online" ? "btn-danger" : "btn-success"}`;
+  btn.disabled = false;
+
+  btn.onclick = async () => {
+    const newStatus = room.status === "online" ? "offline" : "online";
+    try {
+      const res = await fetch(`http://18.140.43.246:5000/api/rooms/${room.room_id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        loadRoomstatus(); // refresh after update
       } else {
-        status1.className = "badge bg-danger";
-        status1.textContent = "Offline";
+        alert("Failed to update scanner status.");
       }
+    } catch (err) {
+      console.error("Error updating status:", err);
     }
+  };
+}
+
     // Load everything
     loadOverview();
     loadRecentActivity();
