@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enrollment</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="d-flex">
+
+  <!-- Sidebar -->
+  <div id="sidebar"></div>
+
+  <!-- Enrollment Form -->
+  <div class="container-fluid p-4">
+    <h2>Enrollment Management</h2>
+
+    <form id="enrollForm" class="row g-3 mb-4">
+      <input type="hidden" id="enrollment_id">
+
+      <div class="col-md-4">
+        <label class="form-label">Student</label>
+        <select id="studentSelect" class="form-select" required>
+          <option value="">Select a student</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Course</label>
+        <select id="courseSelect" class="form-select" required>
+          <option value="">Select a course</option>
+        </select>
+      </div>
+
+      <div class="col-md-2 align-self-end">
+        <button type="submit" class="btn btn-primary w-100">Add Enrollment</button>
+      </div>
+    </form>
+
+    <!-- Enrollment Table -->
+    <table class="table" id="enrollTable">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Student</th>
+          <th>Course</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="enrollTableBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Load sidebar
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("sidebar").innerHTML = html;
+      });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const base = "http://18.140.43.246:5000/api";
+      const form = document.getElementById("enrollForm");
+      const enrollIdInput = document.getElementById("enrollment_id");
+      const studentSelect = document.getElementById("studentSelect");
+      const courseSelect = document.getElementById("courseSelect");
+      const tableBody = document.getElementById("enrollTableBody");
+
+      // --- Load Students ---
+      async function loadStudents() {
+        const res = await fetch(`${base}/students`);
+        const students = await res.json();
+        studentSelect.innerHTML = '<option value="">Select a student</option>';
+        students.forEach(s => {
+          const opt = document.createElement("option");
+          opt.value = s.student_id;
+          opt.textContent = `${s.student_id} - ${s.name}`;
+          studentSelect.appendChild(opt);
+        });
+      }
+
+      // --- Load Courses ---
+      async function loadCourses() {
+        const res = await fetch(`${base}/courses`);
+        const courses = await res.json();
+        courseSelect.innerHTML = '<option value="">Select a course</option>';
+        courses.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.course_id;
+          opt.textContent = `${c.course_id} - ${c.course_name}`;
+          courseSelect.appendChild(opt);
+        });
+      }
+
+      // --- Load Enrollments ---
+      async function loadEnrollments() {
+        const res = await fetch(`${base}/enrollments`);
+        const enrollments = await res.json();
+        tableBody.innerHTML = "";
+
+        enrollments.forEach(e => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${e.enrollment_id}</td>
+            <td>${e.student_name} (${e.student_id})</td>
+            <td>${e.course_name} (${e.course_id})</td>
+            <td>
+              <button class="btn btn-sm btn-warning me-2 edit-btn" 
+                      data-id="${e.enrollment_id}" 
+                      data-student="${e.student_id}" 
+                      data-course="${e.course_id}">Edit</button>
+              <button class="btn btn-sm btn-danger delete-btn" data-id="${e.enrollment_id}">Delete</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      // --- Add or Update Enrollment ---
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const enrollment_id = enrollIdInput.value.trim();
+        const student_id = studentSelect.value.trim();
+        const course_id = courseSelect.value.trim();
+
+        if (!student_id || !course_id) {
+          alert("Please select both student and course.");
+          return;
+        }
+
+        const method = enrollment_id ? "PUT" : "POST";
+        const url = enrollment_id ? `${base}/enrollments/${enrollment_id}` : `${base}/enrollments`;
+
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ student_id, course_id })
+          });
+
+          if (res.ok) {
+            alert(enrollment_id ? "✅ Enrollment updated!" : "✅ Enrollment added!");
+            form.reset();
+            enrollIdInput.value = "";
+            form.querySelector("button[type='submit']").textContent = "Add Enrollment";
+            loadEnrollments();
+          } else {
+            const errText = await res.text();
+            alert("❌ Failed: " + errText);
+          }
+        } catch (err) {
+          console.error("Error submitting enrollment:", err);
+          alert("Network error while saving enrollment.");
+        }
+      });
+
+      // --- Edit Enrollment ---
+      document.addEventListener("click", (e) => {
+        if (e.target.classList.contains("edit-btn")) {
+          const id = e.target.dataset.id;
+          const student = e.target.dataset.student;
+          const course = e.target.dataset.course;
+
+          enrollIdInput.value = id;
+          studentSelect.value = student;
+          courseSelect.value = course;
+
+          form.querySelector("button[type='submit']").textContent = "Update Enrollment";
+        }
+      });
+
+      // --- Delete Enrollment ---
+      document.addEventListener("click", async (e) => {
+        if (e.target.classList.contains("delete-btn")) {
+          const id = e.target.dataset.id;
+          if (!confirm("Are you sure you want to delete this enrollment?")) return;
+
+          try {
+            const res = await fetch(`${base}/enrollments/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              alert("✅ Enrollment deleted successfully!");
+              loadEnrollments();
+            } else {
+              const errText = await res.text();
+              alert("❌ Failed to delete: " + errText);
+            }
+          } catch (err) {
+            console.error("Error deleting enrollment:", err);
+            alert("Network error while deleting enrollment.");
+          }
+        }
+      });
+
+      // --- Initial Loads ---
+      loadStudents();
+      loadCourses();
+      loadEnrollments();
+    });
+  </script>
+</body>
+</html>
