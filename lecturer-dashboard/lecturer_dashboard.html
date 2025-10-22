@@ -53,7 +53,7 @@
       }
 
       try {
-        const res = await fetch(`${API_BASE}/lecturer/course`, {
+        const res = await fetch(`${API_BASE}/lecturer/attendance`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ lecturer_id: parseInt(lecturerId) })
