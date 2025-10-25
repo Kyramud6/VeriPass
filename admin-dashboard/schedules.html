@@ -70,10 +70,22 @@
 
 <script>
 // Load sidebar
-fetch("navbar.html")
-  .then(res => res.text())
-  .then(html => { document.getElementById("sidebar").innerHTML = html; });
+  fetch("navbar.html")
+    .then(res => res.text())
+    .then(html => {
+      const sidebar = document.getElementById("sidebar");
+      sidebar.innerHTML = html;
 
+      const scripts = sidebar.querySelectorAll("script");
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement("script");
+        newScript.text = oldScript.text;
+        document.body.appendChild(newScript).remove();
+      });
+
+      // Initialize after load
+      if (typeof initNavbar === "function") initNavbar();
+    });
 // Load course list
 fetch("http://18.140.43.246:5000/api/courses")
   .then(res => res.json())

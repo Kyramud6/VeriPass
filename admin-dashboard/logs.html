@@ -34,20 +34,35 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script>
-    // Load sidebar
+    const API_BASE = "http://18.140.43.246:5000/api";
+
+       // Load navbar dynamically
     fetch("navbar.html")
       .then(res => res.text())
-      .then(html => { document.getElementById("sidebar").innerHTML = html; });
+      .then(html => {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.innerHTML = html;
 
-    // Initialize DataTable with safety checks + logging
+      // Execute any scripts inside navbar.html
+        const scripts = sidebar.querySelectorAll("script");
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement("script");
+          newScript.text = oldScript.text;
+          document.body.appendChild(newScript).remove();
+        });
+
+       // Initialize navbar
+        if (typeof initNavbar === "function") initNavbar();
+      });
+      
+     // Initialize DataTable with API
     $(document).ready(function () {
       $('#logTable').DataTable({
         ajax: {
-          url: 'http://18.140.43.246:5000/api/logs',
+          url: `${API_BASE}/logs`,
           dataSrc: function (json) {
             console.log('🧩 Raw response from API:', json);
 
-            // Handle stringified or unexpected formats safely
             if (typeof json === 'string') {
               try {
                 json = JSON.parse(json);
@@ -81,9 +96,10 @@
         ],
         order: [[0, 'desc']],
         pageLength: 10
+      
       });
     });
-  </script>
-
+  
+</script>
 </body>
 </html>

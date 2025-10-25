@@ -44,10 +44,21 @@
 
 <script>
   //Sidebar
-fetch("navbar.html")
+    fetch("navbar.html")
     .then(res => res.text())
     .then(html => {
-      document.getElementById("sidebar").innerHTML = html;
+      const sidebar = document.getElementById("sidebar");
+      sidebar.innerHTML = html;
+
+      const scripts = sidebar.querySelectorAll("script");
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement("script");
+        newScript.text = oldScript.text;
+        document.body.appendChild(newScript).remove();
+      });
+
+      // Initialize after load
+      if (typeof initNavbar === "function") initNavbar();
     });
 
   document.addEventListener("DOMContentLoaded", () => {

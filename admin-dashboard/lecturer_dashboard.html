@@ -44,11 +44,24 @@
 
   <script>
   const API_BASE = "http://18.140.43.246:5000/api";
+    // Load sidebar
+  fetch("navbar.html")
+    .then(res => res.text())
+    .then(html => {
+      const sidebar = document.getElementById("sidebar");
+      sidebar.innerHTML = html;
 
-      // Load sidebar
-    fetch("navbar.html")
-      .then(res => res.text())
-      .then(html => { document.getElementById("sidebar").innerHTML = html; });
+      const scripts = sidebar.querySelectorAll("script");
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement("script");
+        newScript.text = oldScript.text;
+        document.body.appendChild(newScript).remove();
+      });
+
+      // Initialize after load
+      if (typeof initNavbar === "function") initNavbar();
+    });
+
 
     async function loadLecturerCourses() {
       const lecturerId = document.getElementById("lecturerId").value;
@@ -103,6 +116,23 @@
     }
 
     document.getElementById("loadCoursesBtn").addEventListener("click", loadLecturerCourses);
+
+
+    // check login status
+    document.addEventListener("DOMContentLoaded",()=>{
+    const role = localStorage.getItem("role");  
+    console.log("Detected role in dashboard",role);
+if (!role) {
+    // not logged in
+    window.location.href = "index.html";
+}
+
+// Restrict access
+if (window.location.pathname.includes("/admin/") && role !== "admin") {
+    alert("Access denied.");
+    window.location.href = "index.html";
+}
+});
   </script>
 
 </body>
