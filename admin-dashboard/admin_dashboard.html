@@ -75,6 +75,7 @@
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script>
+<<<<<<< HEAD
   fetch("navbar.html")
     .then(res => res.text())
     .then(html => {
@@ -92,6 +93,12 @@
       if (typeof initNavbar === "function") initNavbar();
     });
 
+=======
+    // Load sidebar
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => { document.getElementById("sidebar").innerHTML = html; });
+>>>>>>> 91229703775a04903e94638e950e0a1eda676e7b
 
     // Load overview data
     async function loadOverview() {
@@ -207,6 +214,7 @@ function updateToggleButton(buttonId, room) {
       loadRecentActivity();
       loadRoomstatus();
     } , 15000)
+<<<<<<< HEAD
 
 // check login status
     document.addEventListener("DOMContentLoaded",()=>{
@@ -224,6 +232,8 @@ if (window.location.pathname.includes("/lecturer/") && role !== "lecturer") {
 });
 
 
+=======
+>>>>>>> 91229703775a04903e94638e950e0a1eda676e7b
   </script>
 </body>
 </html>
