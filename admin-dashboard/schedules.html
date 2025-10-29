@@ -214,26 +214,28 @@ document.getElementById("scheduleForm").addEventListener("submit", async (e) => 
   // Make sure room_id is integer
   formData.room_id = parseInt(formData.room_id);
 
-  try {
-    const res = await fetch("http://18.140.43.246:5000/api/schedule", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+try {
+  const res = await fetch("http://18.140.43.246:5000/api/schedule", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(formData),
+  });
 
-    if (res.ok) {
-      alert("✅ Schedule added successfully!");
-      e.target.reset();
-      loadSchedules(); // refresh list only
-    } else {
-      const errText = await res.text();
-      alert("❌ Failed to add schedule: " + errText);
-    }
-  } catch (error) {
-    console.error(error);
-    alert("❌ Network error while adding schedule.");
+  const data = await res.json().catch(() => ({})); // ✅ safely parse JSON
+
+  if (res.ok) {
+    alert("✅ " + (data.message || "Schedule added successfully!"));
+    e.target.reset();
+    loadSchedules(); // ✅ refresh the table only
+  } else {
+    alert("❌ Failed to add schedule: " + (data.error || "Unknown error"));
   }
+} catch (error) {
+  console.error(error);
+  alert("❌ Network error while adding schedule.");
+}
 });
+
 
 // Handle activate/deactivate status toggle button
 document.addEventListener("click" , async (e) => {

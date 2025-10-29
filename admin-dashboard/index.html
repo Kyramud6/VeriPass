@@ -1,7 +1,6 @@
 <!doctype html>
 <html>
 <head>
-<<<<<<< HEAD
   <meta charset="utf-8"/>
   <title>Login</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -35,41 +34,10 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   const password = document.getElementById("password").value.trim();
   if (!email || !password) {
     errorEl.textContent = "Enter email and password.";
-=======
-  <meta charset="UTF-8" />
-  <title>Login</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-</head>
-<body class="bg-light d-flex justify-content-center align-items-center vh-100">
-  <div class="card shadow p-4" style="width: 400px;">
-    <h3 class="text-center mb-4">Login</h3>
-    <div class="mb-3">
-      <label class="form-label">Email / Username</label>
-      <input type="text" id="email_user" class="form-control" placeholder="Enter email or username" />
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Password</label>
-      <input type="password" id="password" class="form-control" placeholder="Enter password" />
-    </div>
-    <button class="btn btn-primary w-100" onclick="loginUser()">Login</button>
-    <div id="errorMsg" class="text-danger mt-3 text-center"></div>
-  </div>
-
- <script>
-const API_BASE = "http://18.140.43.246:5000/api"; 
-
-async function loginUser() {
-  const email_user = document.getElementById("email_user").value;
-  const password = document.getElementById("password").value;
-
-  if (!email_user || !password) {
-    alert("Please enter email/username and password");
->>>>>>> 91229703775a04903e94638e950e0a1eda676e7b
     return;
   }
 
   try {
-<<<<<<< HEAD
     console.log("Sending login request", { email }); // debug
     const res = await fetch(`${API_BASE}/login`, {
       method: "POST",
@@ -92,33 +60,27 @@ async function loginUser() {
       return;
     }
 
+   localStorage.setItem("role", data.role);
+
     // store BEFORE redirect — use localStorage to persist across pages/tabs
-    localStorage.setItem("role", data.role);
-    localStorage.setItem("user_id", data.admin_id ?? data.lecturer_id ?? "");
-    console.log("Stored role,user_id:", localStorage.getItem("role"), localStorage.getItem("user_id"));
-
-    // redirect to correct dashboard (use same domain + path as your hosted files)
-=======
-    const res = await fetch(`${API_BASE}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email_user, password })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Login failed");
-      return;
-    }
-
->>>>>>> 91229703775a04903e94638e950e0a1eda676e7b
-    if (data.role === "admin") {
-      window.location.href = "admin_dashboard.html";
-    } else if (data.role === "lecturer") {
+    if (data.role === "lecturer") {
+      // ✅ Store detailed lecturer info for lecturer_dashboard
+      localStorage.setItem("lecturer", JSON.stringify({
+        lecturer_id: data.lecturer_id,
+        name: data.name || data.lecturer_name || "Lecturer"
+      }));
+      console.log("Lecturer stored:", localStorage.getItem("lecturer"));
       window.location.href = "lecturer_dashboard.html";
-<<<<<<< HEAD
-    } else {
+    } 
+    else if (data.role === "admin") {
+      // ✅ Store admin info (optional)
+      localStorage.setItem("admin", JSON.stringify({
+        admin_id: data.admin_id,
+        name: data.name || "Admin"
+      }));
+      window.location.href = "admin_dashboard.html";
+    } 
+    else {
       errorEl.textContent = "Unknown role returned.";
     }
 
@@ -127,14 +89,6 @@ async function loginUser() {
     errorEl.textContent = "Cannot reach server.";
   }
 });
-=======
-    }
-  } catch (err) {
-    console.error("Login error:", err);
-    alert("Unable to connect to server.");
-  }
-}
->>>>>>> 91229703775a04903e94638e950e0a1eda676e7b
 </script>
 </body>
 </html>

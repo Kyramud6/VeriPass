@@ -10,15 +10,21 @@
 <div class="container">
   <h3 id="courseTitle" class="mb-4 text-center">Attendance Logs</h3>
 
-  <div class="d-flex justify-content-between mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
     <a href="lecturer_dashboard.html" class="btn btn-secondary">← Back</a>
-    <button id="exportBtn" class="btn btn-success">Export CSV</button>
+
+    <div class="d-flex align-items-center gap-2">
+      <select id="sessionFilter" class="form-select" style="width:auto">
+        <option value="">All Sessions</option>
+      </select>
+      <button id="filterBtn" class="btn btn-primary">Filter</button>
+      <button id="exportBtn" class="btn btn-success">Export CSV</button>
+    </div>
   </div>
 
   <table class="table table-striped">
     <thead>
       <tr>
-        <th>Log ID</th>
         <th>Student ID</th>
         <th>Student Name</th>
         <th>Status</th>
@@ -34,28 +40,36 @@
 const API_BASE = "http://18.140.43.246:5000/api";
 const urlParams = new URLSearchParams(window.location.search);
 const courseId = urlParams.get("course_id");
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => {
-      const sidebar = document.getElementById("sidebar");
-      sidebar.innerHTML = html;
 
-      const scripts = sidebar.querySelectorAll("script");
-      scripts.forEach((oldScript) => {
-        const newScript = document.createElement("script");
-        newScript.text = oldScript.text;
-        document.body.appendChild(newScript).remove();
-      });
-
-      // Initialize after load
-      if (typeof initNavbar === "function") initNavbar();
-    });
-
-
-
-async function loadAttendance() {
+// --- Load Sessions (dropdown) ---
+async function loadSessions() {
   try {
-    const res = await fetch(`${API_BASE}/lecturer/course/${courseId}/attendance`);
+    const res = await fetch(`${API_BASE}/course/${courseId}/sessions`);
+    if (!res.ok) throw new Error("Failed to load sessions");
+    const sessions = await res.json();
+
+    const dropdown = document.getElementById("sessionFilter");
+    sessions.forEach(s => {
+      const option = document.createElement("option");
+      option.value = s.start_time; // Used for filtering
+      // Format start_time / end_time like "09:00" instead of full date
+      const start = s.start_time.slice(0,5);
+      const end = s.end_time.slice(0,5);
+      option.textContent = `${s.day_of_week} - ${s.room_name} (${start} - ${end})`;
+      dropdown.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Error loading sessions:", err);
+  }
+}
+
+// --- Load Attendance Logs ---
+async function loadAttendance(start_time = "") {
+  try {
+    let url = `${API_BASE}/lecturer/course/${courseId}/attendance`;
+    if (start_time) url += `?start_time=${encodeURIComponent(start_time)}`;
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch attendance logs");
     const logs = await res.json();
 
@@ -63,14 +77,13 @@ async function loadAttendance() {
     tbody.innerHTML = "";
 
     if (logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No logs found for this course.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No logs found for this selection.</td></tr>`;
       return;
     }
 
     logs.forEach(l => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${l.log_id}</td>
         <td>${l.student_id}</td>
         <td>${l.student_name}</td>
         <td>${l.status}</td>
@@ -84,6 +97,12 @@ async function loadAttendance() {
     alert("Error fetching attendance logs.");
   }
 }
+
+// --- Filter Button ---
+document.getElementById("filterBtn").addEventListener("click", () => {
+  const selected = document.getElementById("sessionFilter").value;
+  loadAttendance();
+});
 
 // --- Export CSV ---
 document.getElementById("exportBtn").addEventListener("click", () => {
@@ -103,6 +122,8 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+// Initialize page
+loadSessions();
 loadAttendance();
 </script>
 </body>

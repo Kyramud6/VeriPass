@@ -44,7 +44,6 @@
         <table class="table table-striped mt-3">
           <thead>
             <tr>
-              <th>Enrollemt ID</th>
               <th>Student ID</th>
               <th>Student Name</th>
               <th>Course ID</th>
@@ -121,7 +120,6 @@
         enrollments.forEach(e => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>${e.enrollment_id}</td>
             <td>${e.student_id}</td>
             <td>${e.name}</td>
             <td>${e.course_id}</td>
@@ -158,9 +156,12 @@
           alert("Enrollment added successfully!");
           loadEnrollments();
         } else {
-          const err = await res.json();
-          alert("Error: " + err.error);
+          if (data.error && data.error.toLowerCase().includes("already enrolled")) {
+            alert("This student already enroll the subject");
+          } else {
+            alert ("Failed to add enrollment" + (data.error || "Unknown error"));
         }
+      }
       } catch (err) {
         console.error("Failed to add enrollment:", err);
       }

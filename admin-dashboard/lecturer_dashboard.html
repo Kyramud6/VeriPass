@@ -6,79 +6,85 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
 </head>
 <body class="d-flex">
+  <!-- Sidebar -->
   <div id="sidebar"></div>
+
+  <!-- Main Content -->
   <div class="container">
     <h2 class="mb-4 text-center">Lecturer Dashboard</h2>
-
-    <!-- Lecturer Login -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-body">
-        <h5>Enter Lecturer ID</h5>
-        <div class="row g-3 align-items-center">
-          <div class="col-md-4">
-            <input type="number" id="lecturerId" class="form-control" placeholder="Enter Lecturer ID" />
-          </div>
-          <div class="col-md-3">
-            <button id="loadCoursesBtn" class="btn btn-primary w-100">Load Courses</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Courses Table -->
     <div class="card shadow-sm">
       <div class="card-body">
-        <h5>Courses Assigned</h5>
+        <h5>Your Assigned Courses</h5>
         <table class="table table-striped mt-3">
           <thead>
             <tr>
               <th>Course ID</th>
               <th>Course Name</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody id="courseTable"></tbody>
+          <tbody id="courseTable">
+            <tr><td colspan="3" class="text-center text-muted">Loading courses...</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
   </div>
 
   <script>
-  const API_BASE = "http://18.140.43.246:5000/api";
-    // Load sidebar
-  fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => {
-      const sidebar = document.getElementById("sidebar");
-      sidebar.innerHTML = html;
+    const API_BASE = "http://18.140.43.246:5000/api";
 
-      const scripts = sidebar.querySelectorAll("script");
-      scripts.forEach((oldScript) => {
-        const newScript = document.createElement("script");
-        newScript.text = oldScript.text;
-        document.body.appendChild(newScript).remove();
+    // Load navbar
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.innerHTML = html;
+
+        const scripts = sidebar.querySelectorAll("script");
+        scripts.forEach((oldScript) => {
+          const newScript = document.createElement("script");
+          newScript.text = oldScript.text;
+          document.body.appendChild(newScript).remove();
+        });
+
+        if (typeof initNavbar === "function") initNavbar();
       });
 
-      // Initialize after load
-      if (typeof initNavbar === "function") initNavbar();
-    });
-
-
     async function loadLecturerCourses() {
-      const lecturerId = document.getElementById("lecturerId").value;
-      if (!lecturerId) {
-        alert("Please enter a Lecturer ID.");
+      const role = localStorage.getItem("role");
+      const lecturerData = JSON.parse(localStorage.getItem("lecturer") || "{}");
+      const lecturerId = lecturerData.lecturer_id;
+      const lecturerName = lecturerData.name;
+
+      // Security checks
+      if (!role || role !== "lecturer") {
+        alert("Access denied. Only lecturers can view this page.");
+        window.location.href = "index.html";
         return;
       }
+
+      if (!lecturerId) {
+        alert("Lecturer information missing. Please log in again.");
+        localStorage.clear();
+        window.location.href = "index.html";
+        return;
+      }
+
+      console.log(`👨‍🏫 Loading courses for Lecturer ID: ${lecturerId} (${lecturerName || "Unknown"})`);
 
       try {
         const res = await fetch(`${API_BASE}/lecturer/course`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lecturer_id: parseInt(lecturerId) })
+          body: JSON.stringify({ lecturer_id: lecturerId })
         });
 
         if (!res.ok) {
-          alert("Failed to load courses.");
+          console.error("❌ Failed to load courses");
+          alert("Failed to load courses. Please try again later.");
           return;
         }
 
@@ -86,8 +92,8 @@
         const tbody = document.getElementById("courseTable");
         tbody.innerHTML = "";
 
-        if (courses.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="2" class="text-center text-muted">No courses found for this lecturer.</td></tr>`;
+        if (!courses.length) {
+          tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">No courses found for ${lecturerName || "this lecturer"}.</td></tr>`;
           return;
         }
 
@@ -97,43 +103,23 @@
             <td>${course.course_id}</td>
             <td>${course.course_name}</td>
             <td>
-            <button class="btn btn-outline-primary btn-sm"
-            onclick="window.location.href='view_student.html?course_id=${course.course_id}'">
-            View Students
-            </button>
-            </td>
-            <td>
-            <a href="view_attendance.html?course_id=${course.course_id}" 
-            class="btn btn-sm btn-outline-primary">View Attendance</a>
+              <button class="btn btn-outline-primary btn-sm"
+                onclick="window.location.href='view_student.html?course_id=${course.course_id}'">
+                View Students
+              </button>
+              <a href="view_attendance.html?course_id=${course.course_id}" 
+                class="btn btn-sm btn-outline-secondary ms-2">View Attendance</a>
             </td>
           `;
           tbody.appendChild(tr);
         });
       } catch (err) {
-        console.error("Error loading lecturer courses:", err);
+        console.error("⚠️ Error fetching courses:", err);
         alert("Error connecting to server.");
       }
     }
 
-    document.getElementById("loadCoursesBtn").addEventListener("click", loadLecturerCourses);
-
-
-    // check login status
-    document.addEventListener("DOMContentLoaded",()=>{
-    const role = localStorage.getItem("role");  
-    console.log("Detected role in dashboard",role);
-if (!role) {
-    // not logged in
-    window.location.href = "index.html";
-}
-
-// Restrict access
-if (window.location.pathname.includes("/admin/") && role !== "admin") {
-    alert("Access denied.");
-    window.location.href = "index.html";
-}
-});
+    document.addEventListener("DOMContentLoaded", loadLecturerCourses);
   </script>
-
 </body>
 </html>

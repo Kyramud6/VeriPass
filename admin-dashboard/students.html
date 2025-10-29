@@ -2,173 +2,187 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Students</title>
+  <title>Student Management</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body class="d-flex">
-
   <!-- Sidebar -->
-    <div id="sidebar"></div>
+  <div id="sidebar"></div>
 
-<!--Add/Edit form-->
-<form id = "studentform" class = "row g- mb-4">
-  <input type ="hidden" id="student_id">
-  <div class = "col-md-5">
-    <label class = "form-label">Student Name</label>
-    <input type ="text" id="student_name" class="form-control" required placeholder="Enter Student's Name">
+  <!-- Main Content -->
+  <div class="container-fluid p-4">
+    <h2>Student Management</h2>
+
+    <!-- Add/Edit Student Form -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 id="formTitle">Add New Student</h5>
+        <form id="studentform" class="row g-3 align-items-end">
+          <input type="hidden" id="student_id">
+          
+          <div class="col-md-5">
+            <label class="form-label">Student Name</label>
+            <input type="text" id="student_name" class="form-control" required placeholder="Enter Student's Name">
+          </div>
+
+          <div class="col-md-5">
+            <label class="form-label">Card UID</label>
+            <input type="text" id="card_uid" class="form-control" required placeholder="Enter Card UID">
+          </div>
+
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Add Student</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Student Table -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5>Current Students</h5>
+        <table class="table table-striped mt-3" id="studentTable">
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Student Name</th>
+              <th>Card UID</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
-  <div class = "col-md-5">
-    <label class = "form-label">Card UID</label>
-    <input type ="text" id="card_uid" class="form-control" required placeholder="Enter card UID">
-  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    const API_BASE = "http://18.140.43.246:5000/api";
 
-  <div class = "col-md-2 align-self-end">
-    <button type = "submit" class = "btn btn-primary w-100">Add Student</button>
-  </div>
-</form>
-
-<!---Student table-->
-<table class = "table" id ="studentTable">
-  <thead class = "table-light">
-    <tr>
-      <th>ID</th>
-      <th>Name</th>
-      <th>Card UID</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody id ="studentTableBody"></tbody>
-</table>
-</div>
-
-<script>
-  //Sidebar
+    // --- Load Sidebar ---
     fetch("navbar.html")
-    .then(res => res.text())
-    .then(html => {
-      const sidebar = document.getElementById("sidebar");
-      sidebar.innerHTML = html;
+      .then(res => res.text())
+      .then(html => {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.innerHTML = html;
 
-      const scripts = sidebar.querySelectorAll("script");
-      scripts.forEach((oldScript) => {
-        const newScript = document.createElement("script");
-        newScript.text = oldScript.text;
-        document.body.appendChild(newScript).remove();
+        const scripts = sidebar.querySelectorAll("script");
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement("script");
+          newScript.text = oldScript.text;
+          document.body.appendChild(newScript).remove();
+        });
+
+        if (typeof initNavbar === "function") initNavbar();
       });
 
-      // Initialize after load
-      if (typeof initNavbar === "function") initNavbar();
-    });
+    document.addEventListener("DOMContentLoaded", () => {
+      const route = `${API_BASE}/students`;
+      const form = document.getElementById("studentform");
+      const nameInput = document.getElementById("student_name");
+      const uidInput = document.getElementById("card_uid");
+      const idInput = document.getElementById("student_id");
+      const tableBody = document.getElementById("studentTableBody");
+      const submitBtn = form.querySelector("button[type='submit']");
+      const formTitle = document.getElementById("formTitle");
 
-  document.addEventListener("DOMContentLoaded", () => {
-    const route = "http://18.140.43.246:5000/api/students";
-    const form = document.getElementById("studentform");
-    const nameInput = document.getElementById("student_name");
-    const uidInput = document.getElementById("card_uid");
-    const idInput = document.getElementById("student_id");
-    const tableBody = document.getElementById("studentTableBody");
+      // Load students
+      async function loadStudents() {
+        try {
+          const res = await fetch(route);
+          const students = await res.json();
+          tableBody.innerHTML = "";
 
-    // Load student record
-    async function loadStudent() {
-      const res = await fetch (route);
-      const students = await res.json();
-      tableBody.innerHTML = "";
+          students.forEach(s => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${s.student_id}</td>
+              <td>${s.name}</td>
+              <td>${s.card_uid || "-"}</td>
+              <td>
+                <button class="btn btn-sm btn-warning me-2 edit-btn" data-id="${s.student_id}" data-name="${s.name}" data-uid="${s.card_uid || ''}">Edit</button>
+                <button class="btn btn-sm btn-danger delete-btn" data-id="${s.student_id}">Delete</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error("Failed to load students:", err);
+        }
+      }
 
-      students.forEach (s => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-        <td>${s.student_id}</td>
-        <td>${s.name}</td>
-        <td>${s.card_uid || "-"}</td>
-        <td>
-          <button class="btn btn-sm btn-warning me-2 edit-btn" data-id="${s.student_id}" data-name="${s.name}" data-uid="${s.card_uid || ''}">Edit</button>
-            <button class="btn btn-sm btn-danger delete-btn" data-id="${s.student_id}">Delete</button>
-          </td>
-        `;
-        tableBody.appendChild(row);
+      // Add / Update Student
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const id = idInput.value.trim();
+        const name = nameInput.value.trim();
+        const card_uid = uidInput.value.trim();
+        const method = id ? "PUT" : "POST";
+        const url = id ? `${route}/${id}` : route;
+
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, card_uid })
+          });
+
+          if (res.ok) {
+            alert(id ? "✅ Student updated successfully!" : "✅ Student added successfully!");
+            form.reset();
+            idInput.value = "";
+            submitBtn.textContent = "Add Student";
+            formTitle.textContent = "Add New Student";
+            loadStudents();
+          } else {
+            const errText = await res.text();
+            alert("❌ Failed: " + errText);
+          }
+        } catch (err) {
+          console.error("Error submitting form:", err);
+          alert("❌ Network error");
+        }
       });
-    }
 
-// Add student / Update student
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+      // Edit Student
+      document.addEventListener("click", (e) => {
+        if (e.target.classList.contains("edit-btn")) {
+          const id = e.target.dataset.id;
+          const name = e.target.dataset.name;
+          const uid = e.target.dataset.uid;
+          idInput.value = id;
+          nameInput.value = name;
+          uidInput.value = uid;
+          submitBtn.textContent = "Update Student";
+          formTitle.textContent = "Edit Student";
+        }
+      });
 
-  const id = idInput.value.trim();
-  const name = nameInput.value.trim();
-  const card_uid = uidInput.value.trim();
+      // Delete Student
+      document.addEventListener("click", async (e) => {
+        if (e.target.classList.contains("delete-btn")) {
+          const id = e.target.dataset.id;
+          if (!confirm("Are you sure you want to delete this student?")) return;
 
-  const method = id ? "PUT" : "POST";
-  const url = id ? `${route}/${id}` : route;
+          try {
+            const res = await fetch(`${route}/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              alert("🗑️ Student deleted successfully!");
+              loadStudents();
+            } else {
+              const errText = await res.text();
+              alert("❌ Failed to delete: " + errText);
+            }
+          } catch (err) {
+            console.error("Error deleting student:", err);
+            alert("❌ Network error");
+          }
+        }
+      });
 
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, card_uid })
+      loadStudents();
     });
-
-    if (res.ok) {
-      alert(id ? "✅ Student updated successfully!" : "✅ Student added successfully!");
-      form.reset();
-      idInput.value = ""; // clear hidden field
-      form.querySelector("button[type='submit']").textContent = "Add Student";
-      loadStudent();
-    } else {
-      const errText = await res.text();
-      alert("❌ Failed: " + errText);
-    }
-  } catch (err) {
-    console.error("Error submitting form:", err);
-    alert("❌ Network error");
-  }
-});
-// Edit Student Profile
-document.addEventListener("click", (e) => {
-  if (e.target.classList.contains("edit-btn")) {
-    const id = e.target.dataset.id;
-    const name = e.target.dataset.name;
-    const uid = e.target.dataset.uid;
-
-    // fill input fields
-    idInput.value = id;
-    nameInput.value = name;
-    uidInput.value = uid;
-
-    // change button text to "Update"
-    form.querySelector("button[type='submit']").textContent = "Update Student";
-  }
-});
-
-// Delete Student
-document.addEventListener("click", async (e) => {
-  if (e.target.classList.contains("delete-btn")) {
-    const id = e.target.dataset.id;
-
-    const confirmation = confirm("Are you sure u want delete this student from the record?");
-    if (!confirmation) return;
-
-    try {
-      const res = await fetch (`${route}/${id}`,{method:"DELETE"});
-
-      if (res.ok) {
-        alert ("Student delete successfully");
-        loadStudent();
-      } else {
-        const errText = await res.text();
-        alert ("Student can't be deleted:" , errText);
-      }
-    } catch (err) {
-      console.error ("Error deleting student", err);
-      alert("Network error while deleting student"); 
-      }
-    }
-  });
-  loadStudent();
-});
-
-
-
-</script>
+  </script>
 </body>
 </html>

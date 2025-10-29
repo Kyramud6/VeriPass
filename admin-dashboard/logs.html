@@ -14,10 +14,10 @@
   <div class="container-fluid p-4">
     <h2>Logs</h2>
 
-    <table id="logTable" class="display" style="width:100%">
+    <table id="logTable" class="display table table-striped" style="width:100%">
       <thead>
         <tr>
-          <th>Log ID</th>
+          <!-- Removed Log ID -->
           <th>Student Name</th>
           <th>Student ID</th>
           <th>Room</th>
@@ -33,17 +33,18 @@
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+
   <script>
     const API_BASE = "http://18.140.43.246:5000/api";
 
-       // Load navbar dynamically
+    // --- Load Sidebar ---
     fetch("navbar.html")
       .then(res => res.text())
       .then(html => {
         const sidebar = document.getElementById("sidebar");
         sidebar.innerHTML = html;
 
-      // Execute any scripts inside navbar.html
+        // Run scripts inside navbar.html
         const scripts = sidebar.querySelectorAll("script");
         scripts.forEach(oldScript => {
           const newScript = document.createElement("script");
@@ -51,32 +52,27 @@
           document.body.appendChild(newScript).remove();
         });
 
-       // Initialize navbar
         if (typeof initNavbar === "function") initNavbar();
       });
-      
-     // Initialize DataTable with API
+
+    // --- Initialize DataTable ---
     $(document).ready(function () {
       $('#logTable').DataTable({
         ajax: {
           url: `${API_BASE}/logs`,
           dataSrc: function (json) {
             console.log('🧩 Raw response from API:', json);
-
             if (typeof json === 'string') {
-              try {
-                json = JSON.parse(json);
-              } catch (err) {
+              try { json = JSON.parse(json); }
+              catch (err) {
                 console.error('❌ JSON parse failed:', err, json);
                 return [];
               }
             }
-
             if (!Array.isArray(json)) {
               console.error('❌ Expected array but got:', json);
               return [];
             }
-
             return json;
           },
           error: function (xhr, status, error) {
@@ -85,21 +81,24 @@
           }
         },
         columns: [
-          { data: 'log_id', title: 'Log ID' },
-          { data: 'student_name', title: 'Student Name' },
-          { data: 'student_id', title: 'Student ID' },
-          { data: 'room_id', title: 'Room' },
-          { data: 'course_id', title: 'Course' },
-          { data: 'status', title: 'Status' },
-          { data: 'reason', title: 'Reason' },
-          { data: 'timestamp', title: 'Time' }
+          { data: 'student_name', title: 'Student Name', render: d => (d && d !== "None" ? d : 'Unknown') },
+          { data: 'student_id', title: 'Student ID', render: d => (d && d !== "None" ? d : 'Not Registered') },
+          { data: 'room_id', title: 'Room', render: d => (d && d !== "None" ? d : 'Unknown Room') },
+          { data: 'course_id', title: 'Course', render: d => (d && d !== "None" ? d : 'Unknown Course') },
+          { data: 'status', title: 'Status', render: d => (d && d !== "None" ? d : '-') },
+          { data: 'reason', title: 'Reason', render: d => (d && d !== "None" ? d : '-') },
+          {
+            data: 'timestamp',
+            title: 'Time',
+            render: function (data) {
+              return new Date(data).toLocaleString(); // readable format
+            }
+          }
         ],
-        order: [[0, 'desc']],
+        order: [[6, 'desc']], // sort by timestamp now
         pageLength: 10
-      
       });
     });
-  
-</script>
+  </script>
 </body>
 </html>
