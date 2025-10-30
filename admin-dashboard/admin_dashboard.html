@@ -115,6 +115,13 @@
         tbody.innerHTML = "";
 
         logs.slice(0, 5).forEach(log => {
+          const date = new Date(log.timestamp);
+          const localDate = new Date(date.getTime() + (8*60*60*1000));
+          const formattedTime = localDate.toLocaleString('en-MY', {
+            timeZone: 'Asia/Kuala_Lumpur',
+            hours12 : true
+          });
+
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${log.student_name || "-"}</td>
@@ -124,7 +131,7 @@
                 ${log.status}
               </span>
             </td>
-            <td>${new Date(log.timestamp).toLocaleString()}</td>
+            <td>${formattedTime}</td>
           `;
           tbody.appendChild(tr);
         });

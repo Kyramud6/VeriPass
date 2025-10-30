@@ -39,6 +39,7 @@
 <script>
 const API_BASE = "http://18.140.43.246:5000/api";
 const urlParams = new URLSearchParams(window.location.search);
+const lecturerId = localStorage.getItem("lecturer_id");
 const courseId = urlParams.get("course_id");
 
 // --- Load Sessions (dropdown) ---
@@ -63,10 +64,10 @@ async function loadSessions() {
   }
 }
 
-// --- Load Attendance Logs ---
+/// --- Load Attendance Logs ---
 async function loadAttendance(start_time = "") {
   try {
-    let url = `${API_BASE}/lecturer/course/${courseId}/attendance`;
+    let url = `${API_BASE}/lecturer/${lecturerId}/courses/${courseId}/attendance`;
     if (start_time) url += `?start_time=${encodeURIComponent(start_time)}`;
 
     const res = await fetch(url);
@@ -97,6 +98,7 @@ async function loadAttendance(start_time = "") {
     alert("Error fetching attendance logs.");
   }
 }
+
 
 // --- Filter Button ---
 document.getElementById("filterBtn").addEventListener("click", () => {

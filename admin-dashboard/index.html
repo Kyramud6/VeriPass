@@ -65,13 +65,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     // store BEFORE redirect — use localStorage to persist across pages/tabs
     if (data.role === "lecturer") {
       // ✅ Store detailed lecturer info for lecturer_dashboard
-      localStorage.setItem("lecturer", JSON.stringify({
+      const lecturerData = {
         lecturer_id: data.lecturer_id,
-        name: data.name || data.lecturer_name || "Lecturer"
-      }));
-      console.log("Lecturer stored:", localStorage.getItem("lecturer"));
+        name : data.name || data.lecturer_name || "Lecturer"
+      };
+      localStorage.setItem("lecturer", JSON.stringify(lecturerData));
+      localStorage.setItem("lecturer_id", lecturerData.lecturer_id);
+      console.log ("Lecturer stored", lecturerData);
       window.location.href = "lecturer_dashboard.html";
-    } 
+    }
     else if (data.role === "admin") {
       // ✅ Store admin info (optional)
       localStorage.setItem("admin", JSON.stringify({
