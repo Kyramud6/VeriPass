@@ -18,11 +18,11 @@ This project is part of my Final Year Project (FYP), currently under active deve
 
 ## 🧩 System Architecture
 - **Frontend:** HTML, Bootstrap, JavaScript  
-- **Backend:** Python Flask  
-- **Database:** MySQL  
-- **IoT Module:** ESP32 + MFRC522 RFID 
+- **Backend:** Python Flask
+- **IoT:** Arduino IDE, C++
+- **Database:** MySQL (Hosted on AWS RDS)  
+- **IoT Module:** ESP32 + MFRC522 RFID  
 - **Hosting:** AWS EC2
-
 ---
 
 ## 🖥️ Screenshots / Demo (Coming Soon)
