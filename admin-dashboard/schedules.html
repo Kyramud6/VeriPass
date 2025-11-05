@@ -87,7 +87,7 @@
       if (typeof initNavbar === "function") initNavbar();
     });
 // Load course list
-fetch("http://18.140.43.246:5000/api/courses")
+fetch("http://13.214.116.232:5000/api/courses")
   .then(res => res.json())
   .then(courses => {
     const select = document.getElementById("courseSelect");
@@ -100,7 +100,7 @@ fetch("http://18.140.43.246:5000/api/courses")
   });
 
 // Load room list
-fetch("http://18.140.43.246:5000/api/rooms")
+fetch("http://13.214.116.232:5000/api/rooms")
   .then(res => res.json())
   .then(rooms => {
     const select = document.getElementById("roomSelect");
@@ -164,7 +164,7 @@ startSelect.addEventListener("change", updateEndTimes);
 
 // Load schedule table
 async function loadSchedules(){
-  const res = await fetch("http://18.140.43.246:5000/api/schedule");
+  const res = await fetch("http://13.214.116.232:5000/api/schedule");
   const schedules = await res.json();
   const tbody = document.querySelector("#scheduleTable tbody");
   tbody.innerHTML ="";
@@ -215,7 +215,7 @@ document.getElementById("scheduleForm").addEventListener("submit", async (e) => 
   formData.room_id = parseInt(formData.room_id);
 
 try {
-  const res = await fetch("http://18.140.43.246:5000/api/schedule", {
+  const res = await fetch("http://13.214.116.232:50000/api/schedule", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(formData),
@@ -246,7 +246,7 @@ document.addEventListener("click" , async (e) => {
 
     if (!confirm(`Change schedule to ${newstatus}?`)) return;
     try {
-    const res = await fetch (`http://18.140.43.246:5000/api/schedule/${scheduleid}/status`, {
+    const res = await fetch (`http://13.214.116.232:5000/api/schedule/${scheduleid}/status`, {
       method : "PUT",
       headers : {"Content-Type" : "application/json" },
       body : JSON.stringify({status : newstatus}),
@@ -283,7 +283,7 @@ document.addEventListener("click", async (e) => {
     if (!confirm("Are you sure u want to delete?")) return;
 
     try {
-      const res = await fetch (`http://18.140.43.246:5000/api/schedule/${scheduleid}`, {
+      const res = await fetch (`http://13.214.116.232:5000/api/schedule/${scheduleid}`, {
         method: "DELETE",
       });
 
