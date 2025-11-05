@@ -28,8 +28,8 @@
       <div class="col-md-3">
         <div class="card text-center shadow-sm">
           <div class="card-body">
-            <h5>Total Logs</h5>
-            <h3 id="totalLogs">--</h3>
+            <h5>Total Lecturer</h5>
+            <h3 id="total_lecturer">--</h3>
           </div>
         </div>
       </div>
@@ -37,7 +37,7 @@
       <div class="col-md-3">
   <div class="card text-center shadow-sm">
     <div class="card-body">
-      <h5>Scanner Lab A101</h5>
+      <h5>A1-CL13</h5>
       <p>Status: <span id="scanner1Status" class="badge bg-secondary">Loading...</span></p>
       <button id="scanner1Toggle" class="btn btn-sm btn-secondary" disabled>Loading...</button>
     </div>
@@ -47,7 +47,7 @@
 <div class="col-md-3">
   <div class="card text-center shadow-sm">
     <div class="card-body">
-      <h5>Scanner Lab A102</h5>
+      <h5>A1-CL16</h5>
       <p>Status: <span id="scanner2Status" class="badge bg-secondary">Loading...</span></p>
       <button id="scanner2Toggle" class="btn btn-sm btn-secondary" disabled>Loading...</button>
     </div>
@@ -96,10 +96,10 @@
     // Load overview data
     async function loadOverview() {
       try {
-        const res = await fetch("http://13.214.116.232:5000/api/overview");
+        const res = await fetch("http://18.140.43.246:5000/api/overview");
         const data = await res.json();
         document.getElementById("totalStudents").textContent = data.total_students || 0;
-        document.getElementById("totalLogs").textContent = data.total_logs || 0;
+        document.getElementById("total_lecturer").textContent = data.total_lecturer || 0;
       } catch (err) {
         console.error("Failed to load overview:", err);
       }
@@ -108,7 +108,7 @@
     // Load recent activity (last 5 logs)
     async function loadRecentActivity() {
       try {
-        const res = await fetch("http://13.214.116.232:5000/api/logs");
+        const res = await fetch("http://18.140.43.246:5000/api/logs");
         const logs = await res.json();
 
         const tbody = document.getElementById("recentActivity");
@@ -142,11 +142,11 @@
     // Load live scanner status
     async function loadRoomstatus(){
       try {
-        const res = await fetch ("http://13.214.116.232:5000/api/rooms");
+        const res = await fetch ("http://18.140.43.246:5000/api/rooms");
         const room = await res.json();
 
-        const room101 = room.find(r => r.room_name === "Lab A101");
-        const room102 = room.find(r => r.room_name === "Lab A102");
+        const room101 = room.find(r => r.room_name === "A1-CL13");
+        const room102 = room.find(r => r.room_name === "A1-CL16");
 
         updateRoomstatus("scanner1Status",room101?.status);
         updateRoomstatus("scanner2Status",room102?.status);
@@ -189,7 +189,7 @@ function updateToggleButton(buttonId, room) {
   btn.onclick = async () => {
     const newStatus = room.status === "online" ? "offline" : "online";
     try {
-      const res = await fetch(`http://13.214.116.232:5000/api/rooms/${room.room_id}/status`, {
+      const res = await fetch(`http://18.140.43.246:5000/api/rooms/${room.room_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus })
