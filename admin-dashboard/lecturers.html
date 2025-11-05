@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lecturer Management</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="d-flex">
+  <!-- Sidebar -->
+  <div id="sidebar"></div>
+
+  <!-- Main Content -->
+  <div class="container-fluid p-4">
+    <h2>Lecturer Management</h2>
+
+    <!-- Add/Edit Lecturer Form -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 id="formTitle">Add New Lecturer</h5>
+        <form id="lecturerform" class="row g-3 align-items-end">
+          <input type="hidden" id="lecturer_id">
+          
+          <div class="col-md-2">
+            <label class="form-label">Lecturer ID Num</label>
+            <input type="text" id="lecturer_id_num" class="form-control" required placeholder="Enter Lecturer ID Num">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label">Lecturer Name</label>
+            <input type="text" id="name" class="form-control" required placeholder="Enter Lecturer Name">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label">Faculty</label>
+            <input type="text" id="faculty" class="form-control" required placeholder="Enter Faculty">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">Email</label>
+            <input type="email" id="email" class="form-control" required placeholder="Enter Email">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label">Password</label>
+            <input type="text" id="password" class="form-control" required placeholder="Enter Password">
+          </div>
+
+          <div class="col-md-1 d-grid">
+            <button type="submit" class="btn btn-primary w-100">Add</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lecturer Table -->
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5>Current Lecturers</h5>
+        <table class="table table-striped mt-3" id="lecturerTable">
+          <thead>
+            <tr>
+              <th>Lecturer ID Num</th>
+              <th>Name</th>
+              <th>Faculty</th>
+              <th>Email</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="lecturerTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    const API_BASE = "http://13.214.116.232:5000/api";
+
+    // --- Load Sidebar ---
+    fetch("navbar.html")
+      .then(res => res.text())
+      .then(html => {
+        const sidebar = document.getElementById("sidebar");
+        sidebar.innerHTML = html;
+
+        const scripts = sidebar.querySelectorAll("script");
+        scripts.forEach(oldScript => {
+          const newScript = document.createElement("script");
+          newScript.text = oldScript.text;
+          document.body.appendChild(newScript).remove();
+        });
+
+        if (typeof initNavbar === "function") initNavbar();
+      });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const route = `${API_BASE}/lecturers`;
+      const tableBody = document.getElementById("lecturerTableBody");
+      const form = document.getElementById("lecturerform");
+      const formTitle = document.getElementById("formTitle");
+      const submitBtn = form.querySelector("button[type='submit']");
+
+      const idInput = document.getElementById("lecturer_id");
+      const idNumInput = document.getElementById("lecturer_id_num");
+      const nameInput = document.getElementById("name");
+      const facultyInput = document.getElementById("faculty");
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+
+      // Load lecturers
+      async function loadLecturers() {
+        try {
+          const res = await fetch(route);
+          const lecturers = await res.json();
+          tableBody.innerHTML = "";
+
+          lecturers.forEach(l => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${l.lecturer_id_num}</td>
+              <td>${l.name}</td>
+              <td>${l.faculty}</td>
+              <td>${l.email}</td>
+              <td>
+                <button class="btn btn-sm btn-warning me-2 edit-btn"
+                  data-id="${l.lecturer_id}"
+                  data-idnum="${l.lecturer_id_num}"
+                  data-name="${l.name}"
+                  data-faculty="${l.faculty}"
+                  data-email="${l.email}"
+                  data-password="${l.password}">
+                  Edit
+                </button>
+                <button class="btn btn-sm btn-danger delete-btn" data-id="${l.lecturer_id}">Delete</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } catch (err) {
+          console.error("Failed to load lecturers:", err);
+        }
+      }
+
+      // Add / Update Lecturer
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const lecturer_id = idInput.value.trim();
+        const lecturer_id_num = idNumInput.value.trim();
+        const name = nameInput.value.trim();
+        const faculty = facultyInput.value.trim();
+        const email = emailInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        const method = lecturer_id ? "PUT" : "POST";
+        const url = lecturer_id ? `${route}/${lecturer_id}` : route;
+
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lecturer_id_num, name, faculty, email, password })
+          });
+
+          if (res.ok) {
+            alert(lecturer_id ? "✅ Lecturer updated successfully!" : "✅ Lecturer added successfully!");
+            form.reset();
+            idInput.value = "";
+            submitBtn.textContent = "Add";
+            formTitle.textContent = "Add New Lecturer";
+            loadLecturers();
+          } else {
+            const errText = await res.text();
+            alert("❌ Failed: " + errText);
+          }
+        } catch (err) {
+          console.error("Error submitting form:", err);
+          alert("❌ Network error");
+        }
+      });
+
+      // Edit button
+      document.addEventListener("click", (e) => {
+        if (e.target.classList.contains("edit-btn")) {
+          idInput.value = e.target.dataset.id;
+          idNumInput.value = e.target.dataset.idnum;
+          nameInput.value = e.target.dataset.name;
+          facultyInput.value = e.target.dataset.faculty;
+          emailInput.value = e.target.dataset.email;
+          passwordInput.value = e.target.dataset.password;
+
+          submitBtn.textContent = "Update";
+          formTitle.textContent = "Edit Lecturer";
+        }
+      });
+
+      // Delete button
+      document.addEventListener("click", async (e) => {
+        if (e.target.classList.contains("delete-btn")) {
+          const id = e.target.dataset.id;
+          if (!confirm("Are you sure you want to delete this lecturer?")) return;
+
+          try {
+            const res = await fetch(`${route}/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              alert("🗑️ Lecturer deleted successfully!");
+              loadLecturers();
+            } else {
+              const errText = await res.text();
+              alert("❌ Failed to delete: " + errText);
+            }
+          } catch (err) {
+            console.error("Error deleting lecturer:", err);
+            alert("❌ Network error");
+          }
+        }
+      });
+
+      loadLecturers();
+    });
+  </script>
+</body>
+</html>
