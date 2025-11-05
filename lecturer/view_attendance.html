@@ -23,13 +23,14 @@
   </div>
 
   <table class="table table-striped">
-    <thead>
+    <thead class="table-dark">
       <tr>
         <th>Student ID</th>
         <th>Student Name</th>
         <th>Status</th>
         <th>Room</th>
-        <th>Timestamp</th>
+        <th>Check-In Time</th>
+        <th>Remarks</th>
       </tr>
     </thead>
     <tbody id="attendanceTable"></tbody>
@@ -42,7 +43,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const lecturerId = localStorage.getItem("lecturer_id");
 const courseId = urlParams.get("course_id");
 
-// --- Load Sessions (dropdown) ---
+// --- Load Sessions for filter dropdown ---
 async function loadSessions() {
   try {
     const res = await fetch(`${API_BASE}/course/${courseId}/sessions`);
@@ -52,10 +53,9 @@ async function loadSessions() {
     const dropdown = document.getElementById("sessionFilter");
     sessions.forEach(s => {
       const option = document.createElement("option");
-      option.value = s.start_time; // Used for filtering
-      // Format start_time / end_time like "09:00" instead of full date
-      const start = s.start_time.slice(0,5);
-      const end = s.end_time.slice(0,5);
+      option.value = s.day_of_week; // using day filter
+      const start = s.start_time.slice(0, 5);
+      const end = s.end_time.slice(0, 5);
       option.textContent = `${s.day_of_week} - ${s.room_name} (${start} - ${end})`;
       dropdown.appendChild(option);
     });
@@ -64,51 +64,51 @@ async function loadSessions() {
   }
 }
 
-/// --- Load Attendance Logs ---
+// --- Load Attendance Records ---
 async function loadAttendance(start_time = "") {
   try {
     let url = `${API_BASE}/lecturer/${lecturerId}/courses/${courseId}/attendance`;
-    if (start_time) url += `?start_time=${encodeURIComponent(start_time)}`;
+    if (start_time) url += `?day=${encodeURIComponent(start_time)}`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch attendance logs");
     const logs = await res.json();
+    console.log("fetched Log:", logs )
 
     const tbody = document.getElementById("attendanceTable");
     tbody.innerHTML = "";
 
-    if (logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No logs found for this selection.</td></tr>`;
+    if (!logs || logs.error) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No attendance data found.</td></tr>`;
       return;
     }
 
-    logs.forEach(l => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${l.student_id}</td>
-        <td>${l.student_name}</td>
-        <td>${l.status}</td>
-        <td>${l.room_name}</td>
-        <td>${new Date(l.timestamp).toLocaleString()}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${logs.student_id || "-"}</td>
+      <td>${logs.student_name || "-"}</td>
+      <td>${logs.attendance_status || logs.status || "-"}</td>
+      <td>${logs.room_name || "-"}</td>
+      <td>${logs.check_in_time ? new Date(logs.check_in_time).toLocaleString() : "-"}</td>
+      <td>${logs.remarks || "-"}</td>
+    `;
+    tbody.appendChild(tr);
+
   } catch (err) {
     console.error("Error loading attendance:", err);
     alert("Error fetching attendance logs.");
   }
 }
 
-
 // --- Filter Button ---
 document.getElementById("filterBtn").addEventListener("click", () => {
   const selected = document.getElementById("sessionFilter").value;
-  loadAttendance();
+  loadAttendance(selected);
 });
 
 // --- Export CSV ---
 document.getElementById("exportBtn").addEventListener("click", () => {
-  const rows = [["Log ID", "Student ID", "Student Name", "Status", "Room", "Timestamp"]];
+  const rows = [["Student ID", "Student Name", "Status", "Room", "Check-In Time", "Remarks"]];
   document.querySelectorAll("#attendanceTable tr").forEach(tr => {
     const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText);
     if (cols.length) rows.push(cols);
@@ -124,7 +124,7 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-// Initialize page
+// Initialize
 loadSessions();
 loadAttendance();
 </script>

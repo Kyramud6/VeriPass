@@ -151,6 +151,13 @@
         const email = emailInput.value.trim();
         const password = passwordInput.value.trim();
 
+        // --- Name validation (letters and spaces only) ---
+        const nameRegex = /^[A-Za-z\s]+$/;
+        if (!nameRegex.test(name)) {
+          alert("❌ Please enter a valid name (letters and spaces only).");
+          return;
+        }
+
         const method = lecturer_id ? "PUT" : "POST";
         const url = lecturer_id ? `${route}/${lecturer_id}` : route;
 
@@ -201,12 +208,15 @@
 
           try {
             const res = await fetch(`${route}/${id}`, { method: "DELETE" });
+            const text = await res.text();
+
             if (res.ok) {
               alert("🗑️ Lecturer deleted successfully!");
               loadLecturers();
+            } else if (text.includes("1451")) {
+              alert("❌ This lecturer cannot be deleted because they are still assigned to a course.");
             } else {
-              const errText = await res.text();
-              alert("❌ Failed to delete: " + errText);
+              alert("❌ Failed to delete: " + text);
             }
           } catch (err) {
             console.error("Error deleting lecturer:", err);
