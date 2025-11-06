@@ -38,7 +38,7 @@
 </div>
 
 <script>
-const API_BASE = "http://13.214.116.232:5000/api";
+const API_BASE = "http://18.140.43.246:5000/api";
 const urlParams = new URLSearchParams(window.location.search);
 const lecturerId = localStorage.getItem("lecturer_id");
 const courseId = urlParams.get("course_id");
@@ -83,16 +83,19 @@ async function loadAttendance(start_time = "") {
       return;
     }
 
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${logs.student_id || "-"}</td>
-      <td>${logs.student_name || "-"}</td>
-      <td>${logs.attendance_status || logs.status || "-"}</td>
-      <td>${logs.room_name || "-"}</td>
-      <td>${logs.check_in_time ? new Date(logs.check_in_time).toLocaleString() : "-"}</td>
-      <td>${logs.remarks || "-"}</td>
-    `;
-    tbody.appendChild(tr);
+    logs.forEach(log => {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${log.student_id || "-"}</td>
+    <td>${log.student_name || "-"}</td>
+    <td>${log.attendance_status || log.status || "-"}</td>
+    <td>${log.room_name || "-"}</td>
+    <td>${log.check_in_time ? new Date(log.check_in_time).toLocaleString() : "-"}</td>
+    <td>${log.remarks || "-"}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
 
   } catch (err) {
     console.error("Error loading attendance:", err);
