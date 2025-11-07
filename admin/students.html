@@ -63,7 +63,7 @@
   <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script>
-    const API_BASE = "http://18.140.43.246:5000/api";
+    const API_BASE = "http://13.214.116.232:5000/api";
 
     // --- Load Sidebar ---
     fetch("navbar.html")
@@ -114,7 +114,7 @@
                         data-uid="${s.card_uid || ''}">
                   Edit
                 </button>
-                <button class="btn btn-sm btn-danger delete-btn" data-id="${s.student_id}">
+                <button class="btn btn-sm btn-danger delete-btn" data-id="${s.student_id_num}">
                   Delete
                 </button>
               </td>
@@ -175,12 +175,11 @@
       // Edit Student
       document.addEventListener("click", (e) => {
         if (e.target.classList.contains("edit-btn")) {
-          const id = e.target.dataset.id;
           const num = e.target.dataset.num;
           const name = e.target.dataset.name;
           const uid = e.target.dataset.uid;
 
-          editingId = id;
+          editingId = num;
           idNumInput.value = num;
           nameInput.value = name;
           uidInput.value = uid;

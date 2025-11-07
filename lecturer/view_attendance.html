@@ -38,7 +38,7 @@
 </div>
 
 <script>
-const API_BASE = "http://18.140.43.246:5000/api";
+const API_BASE = "http://13.214.116.232:5000/api";
 const urlParams = new URLSearchParams(window.location.search);
 const lecturerId = localStorage.getItem("lecturer_id");
 const courseId = urlParams.get("course_id");
@@ -53,9 +53,9 @@ async function loadSessions() {
     const dropdown = document.getElementById("sessionFilter");
     sessions.forEach(s => {
       const option = document.createElement("option");
-      option.value = s.day_of_week; // using day filter
-      const start = s.start_time.slice(0, 5);
-      const end = s.end_time.slice(0, 5);
+      option.value = s.day_of_week;
+      const start = s.start_time?.slice(0, 5) || '';
+      const end = s.end_time?.slice(0, 5) || '';
       option.textContent = `${s.day_of_week} - ${s.room_name} (${start} - ${end})`;
       dropdown.appendChild(option);
     });
@@ -65,51 +65,101 @@ async function loadSessions() {
 }
 
 // --- Load Attendance Records ---
-async function loadAttendance(start_time = "") {
+async function loadAttendance(dayFilter = "") {
   try {
     let url = `${API_BASE}/lecturer/${lecturerId}/courses/${courseId}/attendance`;
-    if (start_time) url += `?day=${encodeURIComponent(start_time)}`;
+    if (dayFilter) url += `?day=${encodeURIComponent(dayFilter)}`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch attendance logs");
     const logs = await res.json();
-    console.log("fetched Log:", logs )
 
     const tbody = document.getElementById("attendanceTable");
     tbody.innerHTML = "";
 
-    if (!logs || logs.error) {
+    if (!logs || logs.error || logs.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No attendance data found.</td></tr>`;
       return;
     }
 
     logs.forEach(log => {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${log.student_id || "-"}</td>
-    <td>${log.student_name || "-"}</td>
-    <td>${log.attendance_status || log.status || "-"}</td>
-    <td>${log.room_name || "-"}</td>
-    <td>${log.check_in_time ? new Date(log.check_in_time).toLocaleString() : "-"}</td>
-    <td>${log.remarks || "-"}</td>
-  `;
-  tbody.appendChild(tr);
-});
+      const tr = document.createElement("tr");
 
+      // --- Create Remarks View ---
+      const remarksCell = document.createElement("td");
+      const remarksText = document.createElement("span");
+      remarksText.textContent = log.remarks || "";
 
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "Edit";
+      editBtn.className = "btn btn-sm btn-outline-primary ms-2";
+
+      // --- Edit Mode ---
+      editBtn.addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = log.remarks || "";
+        input.className = "form-control form-control-sm d-inline-block";
+        input.style.width = "70%";
+
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Save";
+        saveBtn.className = "btn btn-sm btn-success ms-2";
+
+        remarksCell.innerHTML = "";
+        remarksCell.appendChild(input);
+        remarksCell.appendChild(saveBtn);
+
+        saveBtn.addEventListener("click", async () => {
+          try {
+            const res = await fetch(`${API_BASE}/lecturer/attendance/${log.attendance_id}/remark`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ remarks: input.value })
+            });
+            if (!res.ok) throw new Error("Failed to update remark");
+            alert("Remark updated successfully");
+
+            // Revert to normal view
+            log.remarks = input.value;
+            remarksCell.innerHTML = "";
+            remarksText.textContent = log.remarks;
+            remarksCell.appendChild(remarksText);
+            remarksCell.appendChild(editBtn);
+          } catch (err) {
+            console.error("Error updating remark:", err);
+            alert("Error updating remark");
+          }
+        });
+      });
+
+      remarksCell.appendChild(remarksText);
+      remarksCell.appendChild(editBtn);
+
+      tr.innerHTML = `
+        <td>${log.student_id_num || "-"}</td>
+        <td>${log.student_name || "-"}</td>
+        <td>${log.attendance_status || log.status || "-"}</td>
+        <td>${log.room_name || "-"}</td>
+        <td>${log.check_in_time ? new Date(log.check_in_time).toLocaleString() : "-"}</td>
+      `;
+      tr.appendChild(remarksCell);
+      tbody.appendChild(tr);
+    });
   } catch (err) {
     console.error("Error loading attendance:", err);
-    alert("Error fetching attendance logs.");
+    const tbody = document.getElementById("attendanceTable");
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error fetching attendance logs.</td></tr>`;
   }
 }
 
-// --- Filter Button ---
+
+// --- Event Listeners ---
 document.getElementById("filterBtn").addEventListener("click", () => {
   const selected = document.getElementById("sessionFilter").value;
   loadAttendance(selected);
 });
 
-// --- Export CSV ---
 document.getElementById("exportBtn").addEventListener("click", () => {
   const rows = [["Student ID", "Student Name", "Status", "Room", "Check-In Time", "Remarks"]];
   document.querySelectorAll("#attendanceTable tr").forEach(tr => {
@@ -127,7 +177,7 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-// Initialize
+// --- Initialize ---
 loadSessions();
 loadAttendance();
 </script>

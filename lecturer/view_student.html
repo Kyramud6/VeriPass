@@ -22,7 +22,11 @@
             <tr>
               <th>Student ID</th>
               <th>Student Name</th>
-              <th>Card UID</th>
+              <th>Attended Classes</th>
+              <th>Total Classes</th>
+              <th>Attendance %</th>
+              <th>Rating</th>
+              <th>Remark</th>
             </tr>
           </thead>
           <tbody id="studentTable">
@@ -38,7 +42,7 @@
   </div>
 
   <script>
-    const API_BASE = "http://18.140.43.246:5000/api";
+    const API_BASE = "http://13.214.116.232:5000/api";
 
       fetch("navbar.html")
     .then(res => res.text())
@@ -90,7 +94,11 @@
           tr.innerHTML = `
             <td>${s.student_id_num}</td>
             <td>${s.name}</td>
-            <td>${s.card_uid}</td>
+            <td>${s.attended_classes || 0}</td>
+            <td>${s.total_classes || 0}</td>
+            <td>${s.attendance_percentage ? s.attendance_percentage + '%' : '0%'}</td>
+            <td>${s.rating || '-'}</td>
+            <td>${s.remarks || '-'}</td>
           `;
           tbody.appendChild(tr);
         });

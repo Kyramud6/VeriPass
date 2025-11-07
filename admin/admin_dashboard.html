@@ -96,7 +96,7 @@
     // Load overview data
     async function loadOverview() {
       try {
-        const res = await fetch("http://18.140.43.246:5000/api/overview");
+        const res = await fetch("http://13.214.116.232:5000/api/overview");
         const data = await res.json();
         document.getElementById("totalStudents").textContent = data.total_students || 0;
         document.getElementById("total_lecturer").textContent = data.total_lecturer || 0;
@@ -108,19 +108,15 @@
     // Load recent activity (last 5 logs)
     async function loadRecentActivity() {
       try {
-        const res = await fetch("http://18.140.43.246:5000/api/logs");
+        const res = await fetch("http://13.214.116.232:5000/api/logs");
         const logs = await res.json();
 
         const tbody = document.getElementById("recentActivity");
         tbody.innerHTML = "";
 
         logs.slice(0, 5).forEach(log => {
-          const date = new Date(log.timestamp);
-          const localDate = new Date(date.getTime() + (8*60*60*1000));
-          const formattedTime = localDate.toLocaleString('en-MY', {
-            timeZone: 'Asia/Kuala_Lumpur',
-            hours12 : true
-          });
+          const formattedTime = new Date(log.timestamp).toLocaleString();
+
 
           const tr = document.createElement("tr");
           tr.innerHTML = `
@@ -142,7 +138,7 @@
     // Load live scanner status
     async function loadRoomstatus(){
       try {
-        const res = await fetch ("http://18.140.43.246:5000/api/rooms");
+        const res = await fetch ("http://13.214.116.232:5000/api/rooms");
         const room = await res.json();
 
         const room101 = room.find(r => r.room_name === "A1-CL13");
@@ -189,7 +185,7 @@ function updateToggleButton(buttonId, room) {
   btn.onclick = async () => {
     const newStatus = room.status === "online" ? "offline" : "online";
     try {
-      const res = await fetch(`http://18.140.43.246:5000/api/rooms/${room.room_id}/status`, {
+      const res = await fetch(`http://13.214.116.232:5000/api/rooms/${room.room_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus })

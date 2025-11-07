@@ -1,0 +1,71 @@
+<!-- navbar.html -->
+<div id="navbar" class="d-flex flex-column flex-shrink-0 p-3 text-bg-dark" style="width: 250px; min-height: 100vh;">
+  <h4 class="mb-3">Dashboard</h4>
+
+  <ul class="nav nav-pills flex-column mb-auto">
+    <!-- 🧑‍💼 Admin Links -->
+    <li class="nav-item admin-only">
+      <a href="admin_dashboard.html" class="nav-link text-white">Overview</a>
+    </li>
+    <li class="admin-only"><a href="logs.html" class="nav-link text-white">Logs</a></li>
+    <li class="admin-only"><a href="enrollment.html" class="nav-link text-white">Enrollment</a></li>
+    <li class="admin-only"><a href="courses.html" class="nav-link text-white">Course</a></li>
+    <li class="admin-only"><a href="schedules.html" class="nav-link text-white">Schedule</a></li>
+    <li class="admin-only"><a href="students.html" class="nav-link text-white">Students</a></li>
+    <li class="admin-only"><a href="lecturers.html" class="nav-link text-white">Lecturers</a></li>
+
+    <li><hr class="text-white"></li>
+
+    <!-- 👨‍🏫 Lecturer Links -->
+    <li class="lecturer-only">
+      <a href="lecturer_dashboard.html" class="nav-link text-white">Lecturer Dashboard</a>
+    </li>
+  </ul>
+
+  <a href="index.html" class="btn btn-outline-light w-100 mt-auto" onclick="logoutUser()">Logout</a>
+</div>
+
+<script>
+function initNavbar() {
+  const role = localStorage.getItem("role");
+
+  // 🔐 Redirect if not logged in
+  if (!role) {
+    console.warn("⚠️ No role found — redirecting to login...");
+    const redirectPath = window.location.pathname.includes("/lecturer/")
+      ? "../index.html"
+      : "index.html";
+    window.location.href = redirectPath;
+    return;
+  }
+
+  console.log("✅ Navbar loaded for role:", role);
+
+  // 🎭 Show links based on role
+  document.querySelectorAll(".admin-only").forEach(el => {
+    el.style.display = role === "admin" ? "" : "none";
+  });
+  document.querySelectorAll(".lecturer-only").forEach(el => {
+    el.style.display = role === "lecturer" ? "" : "none";
+  });
+
+  // 🔵 Highlight current page
+  const currentPage = window.location.pathname.split("/").pop();
+  document.querySelectorAll(".nav-link").forEach(link => {
+    if (link.getAttribute("href").includes(currentPage)) {
+      link.classList.add("active", "bg-primary");
+    }
+  });
+
+  // 🚪 Logout button — clear data + redirect
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      console.log("Logging out...");
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = redirectPath;
+    });
+  }
+}
+</script>

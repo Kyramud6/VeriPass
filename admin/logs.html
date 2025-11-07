@@ -14,14 +14,6 @@
   <div class="container-fluid p-4">
     <h2>Logs</h2>
 
-    <!-- 🔍 Filter section -->
-    <div class="d-flex align-items-center mb-3">
-      <label class="me-2 fw-bold">Filter by Month:</label>
-      <input type="month" id="monthFilter" class="form-control w-auto me-3">
-      <button id="filterBtn" class="btn btn-primary me-2">Filter</button>
-      <button id="resetBtn" class="btn btn-secondary">Reset</button>
-    </div>
-
     <table id="logTable" class="display table table-striped" style="width:100%">
       <thead>
         <tr>
@@ -42,7 +34,7 @@
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 
   <script>
-    const API_BASE = "http://18.140.43.246:5000/api";
+    const API_BASE = "http://13.214.116.232:5000/api";
 
     // --- Load Sidebar ---
     fetch("navbar.html")
@@ -63,10 +55,8 @@
       });
 
     // --- Initialize DataTable ---
-    let table; // ✅ define table variable globally
-
     $(document).ready(function () {
-      table = $('#logTable').DataTable({
+      $('#logTable').DataTable({
         ajax: {
           url: `${API_BASE}/logs`,
           dataSrc: function (json) {
@@ -91,7 +81,7 @@
         },
         columns: [
           { data: 'student_name', title: 'Student Name', render: d => (d && d !== "None" ? d : 'Unknown') },
-          { data: 'student_id', title: 'Student ID', render: d => (d && d !== "None" ? d : 'Not Registered') },
+          { data: 'student_id_num', title: 'Student ID', render: d => (d && d !== "None" ? d : 'Not Registered') },
           { data: 'room_id', title: 'Room', render: d => (d && d !== "None" ? d : 'Unknown Room') },
           { data: 'course_id', title: 'Course', render: d => (d && d !== "None" ? d : 'Unknown Course') },
           { data: 'status', title: 'Status', render: d => (d && d !== "None" ? d : '-') },
@@ -99,45 +89,18 @@
           {
             data: 'timestamp',
             title: 'Time',
-            render: function (data) {
-            const date = new Date(data);
-            const localDate = new Date(date.getTime() + (8 * 60 * 60 * 1000)); // add 8 hours
-            return localDate.toLocaleString('en-MY', {
-              timeZone: 'Asia/Kuala_Lumpur',
-              hour12: true
-            });
-
+            render: function (data, type) {
+            if (!data) return "-";
+            const d = new Date(data);
+            if (type == 'display' || type == 'filter'){
+              return data.replace("GMT", " ").split(".")[0];
+            }
+            return d.getTime();
             }
           }
         ],
         order: [[6, 'desc']],
         pageLength: 10
-      });
-
-      // --- Month Filter ---
-      $('#filterBtn').on('click', function () {
-        const monthVal = $('#monthFilter').val();
-        if (!monthVal) {
-          alert('Please select a month first.');
-          return;
-        }
-
-        const [year, month] = monthVal.split('-').map(Number);
-
-        // custom filtering by timestamp
-        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-          const timestamp = new Date(data[6]); // index of timestamp column
-          return timestamp.getFullYear() === year && (timestamp.getMonth() + 1) === month;
-        });
-
-        table.draw();
-        $.fn.dataTable.ext.search.pop(); // remove filter for next use
-      });
-
-      // --- Reset Filter ---
-      $('#resetBtn').on('click', function () {
-        $('#monthFilter').val('');
-        table.search('').draw();
       });
     });
   </script>
