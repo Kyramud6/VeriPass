@@ -14,27 +14,16 @@
     <a href="lecturer_dashboard.html" class="btn btn-secondary">← Back</a>
 
     <div class="d-flex align-items-center gap-2">
-      <select id="sessionFilter" class="form-select" style="width:auto">
-        <option value="">All Sessions</option>
-      </select>
+      <input type="date" id="dateFilter" class="form-control" />
       <button id="filterBtn" class="btn btn-primary">Filter</button>
+      <button id="clearBtn" class="btn btn-outline-secondary">Clear</button>
       <button id="exportBtn" class="btn btn-success">Export CSV</button>
     </div>
   </div>
 
-  <table class="table table-striped">
-    <thead class="table-dark">
-      <tr>
-        <th>Student ID</th>
-        <th>Student Name</th>
-        <th>Status</th>
-        <th>Room</th>
-        <th>Check-In Time</th>
-        <th>Remarks</th>
-      </tr>
-    </thead>
-    <tbody id="attendanceTable"></tbody>
-  </table>
+  <div id="attendanceContainer">
+    <p class="text-center text-muted">Select a date and click "Filter" to see attendance.</p>
+  </div>
 </div>
 
 <script>
@@ -43,127 +32,155 @@ const urlParams = new URLSearchParams(window.location.search);
 const lecturerId = JSON.parse(localStorage.getItem("lecturer") || "{}").lecturer_id;
 const courseId = urlParams.get("course_id");
 
-// --- Load Sessions for filter dropdown (all scheduled days) ---
-async function loadSessions() {
+let allLogs = []; // store all backend data
+
+// --- Load all backend data (but do not render yet) ---
+async function loadAttendance() {
   try {
-    const res = await fetch(`${API_BASE}/course/${courseId}/sessions`);
-    if (!res.ok) throw new Error("Failed to load sessions");
-    const sessions = await res.json();
-
-    const dropdown = document.getElementById("sessionFilter");
-    sessions.forEach(s => {
-      const option = document.createElement("option");
-      option.value = s.day_of_week; // Send day_of_week to backend
-      const start = s.start_time?.slice(0, 5) || '';
-      const end = s.end_time?.slice(0, 5) || '';
-      option.textContent = `${s.day_of_week} - ${s.room_name} (${start} - ${end})`;
-      dropdown.appendChild(option);
-    });
-  } catch (err) {
-    console.error("Error loading sessions:", err);
-  }
-}
-
-// --- Load Attendance Records ---
-async function loadAttendance(dayFilter = "") {
-  try {
-    let url = `${API_BASE}/lecturer/${lecturerId}/courses/${courseId}/attendance`;
-    if (dayFilter) url += `?day=${encodeURIComponent(dayFilter)}`; // send day_of_week
-
-    const res = await fetch(url);
+    const res = await fetch(`${API_BASE}/lecturer/${lecturerId}/courses/${courseId}/attendance`);
     if (!res.ok) throw new Error("Failed to fetch attendance logs");
-    const logs = await res.json();
+    allLogs = await res.json();
 
-    const tbody = document.getElementById("attendanceTable");
-    tbody.innerHTML = "";
-
-    if (!logs || logs.error || logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">No attendance data found.</td></tr>`;
-      return;
+    // Set min/max for date picker
+    const uniqueDates = [...new Set(allLogs.map(l => l.class_date))].sort();
+    const dateInput = document.getElementById("dateFilter");
+    if (uniqueDates.length > 0) {
+      dateInput.min = uniqueDates[0];
+      dateInput.max = uniqueDates[uniqueDates.length - 1];
     }
 
-    logs.forEach(log => {
-      const tr = document.createElement("tr");
-
-      // Remarks with inline edit
-      const remarksCell = document.createElement("td");
-      const remarksText = document.createElement("span");
-      remarksText.textContent = log.remarks || "";
-
-      const editBtn = document.createElement("button");
-      editBtn.textContent = "Edit";
-      editBtn.className = "btn btn-sm btn-outline-primary ms-2";
-
-      editBtn.addEventListener("click", () => {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = log.remarks || "";
-        input.className = "form-control form-control-sm d-inline-block";
-        input.style.width = "70%";
-
-        const saveBtn = document.createElement("button");
-        saveBtn.textContent = "Save";
-        saveBtn.className = "btn btn-sm btn-success ms-2";
-
-        remarksCell.innerHTML = "";
-        remarksCell.appendChild(input);
-        remarksCell.appendChild(saveBtn);
-
-        saveBtn.addEventListener("click", async () => {
-          try {
-            const res = await fetch(`${API_BASE}/lecturer/attendance/${log.attendance_id}/remark`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ remarks: input.value })
-            });
-            if (!res.ok) throw new Error("Failed to update remark");
-            alert("Remark updated successfully");
-
-            log.remarks = input.value;
-            remarksCell.innerHTML = "";
-            remarksText.textContent = log.remarks;
-            remarksCell.appendChild(remarksText);
-            remarksCell.appendChild(editBtn);
-          } catch (err) {
-            console.error("Error updating remark:", err);
-            alert("Error updating remark");
-          }
-        });
-      });
-
-      remarksCell.appendChild(remarksText);
-      remarksCell.appendChild(editBtn);
-
-      tr.innerHTML = `
-        <td>${log.student_id_num || "-"}</td>
-        <td>${log.student_name || "-"}</td>
-        <td>${log.attendance_status || log.status || "-"}</td>
-        <td>${log.room_name || "-"}</td>
-        <td>${log.check_in_time ? new Date(log.check_in_time).toLocaleString() : "-"}</td>
-      `;
-      tr.appendChild(remarksCell);
-      tbody.appendChild(tr);
-    });
   } catch (err) {
     console.error("Error loading attendance:", err);
-    const tbody = document.getElementById("attendanceTable");
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error fetching attendance logs.</td></tr>`;
+    document.getElementById("attendanceContainer").innerHTML = 
+      `<p class="text-center text-danger">Error fetching attendance logs.</p>`;
   }
 }
 
-// --- Event Listeners ---
+// --- Render logs for a selected date ---
+function renderLogsForDate(date) {
+  const logsToRender = allLogs.filter(log => log.class_date === date);
+  const container = document.getElementById("attendanceContainer");
+  container.innerHTML = "";
+
+  if (!logsToRender.length) {
+    container.innerHTML = `<p class="text-center text-muted">No attendance found for ${date}.</p>`;
+    return;
+  }
+
+  const section = document.createElement("div");
+  section.classList.add("mb-4", "bg-white", "p-3", "rounded", "shadow-sm");
+
+  const header = document.createElement("h5");
+  header.textContent = `Class Date: ${date} (${logsToRender[0].day_of_week || ""})`;
+  header.classList.add("mb-3", "text-primary");
+  section.appendChild(header);
+
+  const table = document.createElement("table");
+  table.className = "table table-striped table-bordered";
+  table.innerHTML = `
+    <thead class="table-dark">
+      <tr>
+        <th>Student ID</th>
+        <th>Student Name</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Room</th>
+        <th>Check-In Time</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+  `;
+  const tbody = document.createElement("tbody");
+
+  logsToRender.forEach(log => {
+    const tr = document.createElement("tr");
+
+    const remarksCell = document.createElement("td");
+    const remarksText = document.createElement("span");
+    remarksText.textContent = log.remarks || `${log.student_name} - Absent`;
+    const editBtn = document.createElement("button");
+    editBtn.textContent = "Edit";
+    editBtn.className = "btn btn-sm btn-outline-primary ms-2";
+
+    editBtn.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = log.remarks || "";
+      input.className = "form-control form-control-sm d-inline-block";
+      input.style.width = "70%";
+
+      const saveBtn = document.createElement("button");
+      saveBtn.textContent = "Save";
+      saveBtn.className = "btn btn-sm btn-success ms-2";
+
+      remarksCell.innerHTML = "";
+      remarksCell.appendChild(input);
+      remarksCell.appendChild(saveBtn);
+
+      saveBtn.addEventListener("click", async () => {
+        try {
+          const res = await fetch(`${API_BASE}/lecturer/attendance/${log.attendance_id}/remark`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ remarks: input.value })
+          });
+          if (!res.ok) throw new Error("Failed to update remark");
+          alert("Remark updated successfully");
+
+          log.remarks = input.value;
+          remarksCell.innerHTML = "";
+          remarksText.textContent = log.remarks;
+          remarksCell.appendChild(remarksText);
+          remarksCell.appendChild(editBtn);
+        } catch (err) {
+          console.error("Error updating remark:", err);
+          alert("Error updating remark");
+        }
+      });
+    });
+
+    remarksCell.appendChild(remarksText);
+    remarksCell.appendChild(editBtn);
+
+    const checkIn = log.check_in_time && !isNaN(new Date(log.check_in_time).getTime())
+      ? log.check_in_time
+      : "-";
+
+    tr.innerHTML = `
+      <td>${log.student_id_num || "-"}</td>
+      <td>${log.student_name || "-"}</td>
+      <td>${log.class_date || "-"}</td>
+      <td>${log.attendance_status || "-"}</td>
+      <td>${log.room_name || "-"}</td>
+      <td>${checkIn}</td>
+    `;
+    tr.appendChild(remarksCell);
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  section.appendChild(table);
+  container.appendChild(section);
+}
+
+// --- Buttons ---
 document.getElementById("filterBtn").addEventListener("click", () => {
-  const selectedDay = document.getElementById("sessionFilter").value;
-  loadAttendance(selectedDay);
+  const selectedDate = document.getElementById("dateFilter").value;
+  if (selectedDate) renderLogsForDate(selectedDate);
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  document.getElementById("dateFilter").value = "";
+  document.getElementById("attendanceContainer").innerHTML = 
+    `<p class="text-center text-muted">Select a date and click "Filter" to see attendance.</p>`;
 });
 
 document.getElementById("exportBtn").addEventListener("click", () => {
-  const rows = [["Student ID", "Student Name", "Status", "Room", "Check-In Time", "Remarks"]];
-  document.querySelectorAll("#attendanceTable tr").forEach(tr => {
+  const rows = [["Student ID","Student Name","Date","Status","Room","Check-In Time","Remarks"]];
+  document.querySelectorAll("#attendanceContainer table tbody tr").forEach(tr => {
     const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText);
     if (cols.length) rows.push(cols);
   });
-
   const csv = rows.map(r => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -175,8 +192,9 @@ document.getElementById("exportBtn").addEventListener("click", () => {
 });
 
 // --- Initialize ---
-loadSessions();
+// Only fetch backend data, do not render anything
 loadAttendance();
 </script>
+
 </body>
 </html>
