@@ -10,11 +10,11 @@
   <div id="sidebar"></div>
 
   <!-- Main Content -->
-  <div class="container">
+  <div class="container mt-4">
     <h2 class="mb-4 text-center">Lecturer Dashboard</h2>
 
     <!-- Courses Table -->
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-4">
       <div class="card-body">
         <h5>Your Assigned Courses</h5>
         <table class="table table-striped mt-3">
@@ -31,95 +31,266 @@
         </table>
       </div>
     </div>
+
+    <!-- Lecturer Schedules -->
+    <h4 class="mt-3">My Schedules</h4>
+    <table class="table" id="lecturerScheduleTable">
+      <thead>
+        <tr>
+          <th>Course</th>
+          <th>Day</th>
+          <th>Time</th>
+          <th>Room</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 
-  <script>
-    const API_BASE = "http://13.214.116.232:5000/api";
+  <!-- Edit Schedule Modal -->
+  <div class="modal fade" id="editScheduleModal" tabindex="-1" aria-labelledby="editScheduleLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Schedule</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editScheduleForm">
+            <input type="hidden" id="scheduleId">
 
-    // Load navbar
-    fetch("navbar.html")
-      .then(res => res.text())
-      .then(html => {
-        const sidebar = document.getElementById("sidebar");
-        sidebar.innerHTML = html;
+            <div class="mb-3">
+              <label class="form-label">Day of Week</label>
+              <select id="dayOfWeek" class="form-select">
+                <option>Monday</option>
+                <option>Tuesday</option>
+                <option>Wednesday</option>
+                <option>Thursday</option>
+                <option>Friday</option>
+              </select>
+            </div>
 
-        const scripts = sidebar.querySelectorAll("script");
-        scripts.forEach((oldScript) => {
-          const newScript = document.createElement("script");
-          newScript.text = oldScript.text;
-          document.body.appendChild(newScript).remove();
-        });
+            <div class="mb-3">
+              <label class="form-label">Start Time</label>
+              <select id="startTime" class="form-select"></select>
+            </div>
 
-        if (typeof initNavbar === "function") initNavbar();
-      });
+            <div class="mb-3">
+              <label class="form-label">End Time</label>
+              <select id="endTime" class="form-select"></select>
+            </div>
 
-    async function loadLecturerCourses() {
-      const role = localStorage.getItem("role");
-      const lecturerData = JSON.parse(localStorage.getItem("lecturer") || "{}");
-      const lecturerId = lecturerData.lecturer_id;
-      const lecturerName = lecturerData.name;
+            <div class="mb-3">
+              <label class="form-label">Room</label>
+              <select id="roomSelect" class="form-select"></select>
+            </div>
 
-      // Security checks
-      if (!role || role !== "lecturer") {
-        alert("Access denied. Only lecturers can view this page.");
-        window.location.href = "index.html";
-        return;
-      }
+            <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      if (!lecturerId) {
-        alert("Lecturer information missing. Please log in again.");
-        localStorage.clear();
-        window.location.href = "index.html";
-        return;
-      }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BASE = "http://13.214.116.232:5000/api";
 
-      console.log(`👨‍🏫 Loading courses for Lecturer ID: ${lecturerId} (${lecturerName || "Unknown"})`);
+// ---------------------- Load Navbar ----------------------
+fetch("navbar.html")
+  .then(res => res.text())
+  .then(html => {
+    const sidebar = document.getElementById("sidebar");
+    sidebar.innerHTML = html;
+    const scripts = sidebar.querySelectorAll("script");
+    scripts.forEach(oldScript => {
+      const newScript = document.createElement("script");
+      newScript.text = oldScript.text;
+      document.body.appendChild(newScript).remove();
+    });
+    if (typeof initNavbar === "function") initNavbar();
+  });
 
-      try {
-        const res = await fetch(`${API_BASE}/lecturer/course`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lecturer_id: lecturerId })
-        });
+// ---------------------- Load Lecturer Courses ----------------------
+async function loadLecturerCourses() {
+  const role = localStorage.getItem("role");
+  const lecturerData = JSON.parse(localStorage.getItem("lecturer") || "{}");
+  const lecturerId = lecturerData.lecturer_id;
+  const lecturerName = lecturerData.name;
 
-        if (!res.ok) {
-          console.error("❌ Failed to load courses");
-          alert("Failed to load courses. Please try again later.");
-          return;
-        }
+  if (!role || role !== "lecturer") {
+    alert("Access denied. Only lecturers can view this page.");
+    window.location.href = "index.html";
+    return;
+  }
+  if (!lecturerId) {
+    alert("Lecturer info missing. Please login again.");
+    localStorage.clear();
+    window.location.href = "index.html";
+    return;
+  }
 
-        const courses = await res.json();
-        const tbody = document.getElementById("courseTable");
-        tbody.innerHTML = "";
-
-        if (!courses.length) {
-          tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">No courses found for ${lecturerName || "this lecturer"}.</td></tr>`;
-          return;
-        }
-
-        courses.forEach(course => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${course.course_id}</td>
-            <td>${course.course_name}</td>
-            <td>
-              <button class="btn btn-outline-primary btn-sm"
-                onclick="window.location.href='view_student.html?course_id=${course.course_id}'">
-                View Students
-              </button>
-              <a href="view_attendance.html?course_id=${course.course_id}" 
-                class="btn btn-sm btn-outline-secondary ms-2">View Attendance</a>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-      } catch (err) {
-        console.error("⚠️ Error fetching courses:", err);
-        alert("Error connecting to server.");
-      }
+  try {
+    const res = await fetch(`${API_BASE}/lecturer/course`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lecturer_id: lecturerId })
+    });
+    const courses = await res.json();
+    const tbody = document.getElementById("courseTable");
+    tbody.innerHTML = "";
+    if (!courses.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">No courses assigned.</td></tr>`;
+      return;
     }
+    courses.forEach(course => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${course.course_id}</td>
+        <td>${course.course_name}</td>
+        <td>
+          <button class="btn btn-outline-primary btn-sm"
+            onclick="window.location.href='view_student.html?course_id=${course.course_id}'">
+            View Students
+          </button>
+          <a href="view_attendance.html?course_id=${course.course_id}" class="btn btn-sm btn-outline-secondary ms-2">
+            View Attendance
+          </a>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(err) {
+    console.error("Error fetching courses:", err);
+    alert("Error connecting to server.");
+  }
+}
 
-    document.addEventListener("DOMContentLoaded", loadLecturerCourses);
-  </script>
+// ---------------------- Load Lecturer Schedules ----------------------
+async function loadLecturerSchedules() {
+  const lecturerData = JSON.parse(localStorage.getItem("lecturer") || "{}");
+  const lecturerId = lecturerData.lecturer_id;
+  const tbody = document.querySelector("#lecturerScheduleTable tbody");
+  tbody.innerHTML = "<tr><td colspan='5'>Loading...</td></tr>";
+
+  try {
+    const res = await fetch(`${API_BASE}/schedule/lecturer/${lecturerId}`);
+    const schedules = await res.json();
+    tbody.innerHTML = "";
+    if (!schedules.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No schedules found.</td></tr>`;
+      return;
+    }
+    schedules.forEach(s => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${s.course_name}</td>
+        <td>${s.day_of_week}</td>
+        <td>${s.start_time} - ${s.end_time}</td>
+        <td>${s.room_name}</td>
+        <td>
+          <button class="btn btn-warning btn-sm edit-schedule" 
+            data-id="${s.schedule_id}"
+            data-day="${s.day_of_week}"
+            data-start="${s.start_time}"
+            data-end="${s.end_time}"
+            data-room="${s.room_id}">
+            Edit
+          </button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(err) {
+    console.error("Error loading schedules:", err);
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Failed to load schedules.</td></tr>`;
+  }
+}
+
+// ---------------------- Time Slots ----------------------
+function Timeslot(startHour = 8, endHour = 22) {
+  const time = [];
+  for (let h = startHour; h <= endHour; h++) {
+    const hour = String(h).padStart(2,'0');
+    time.push(`${hour}:00`);
+  }
+  return time;
+}
+
+const timeOptions = Timeslot();
+const startSelect = document.getElementById("startTime");
+const endSelect = document.getElementById("endTime");
+
+// populate start select
+timeOptions.forEach(t => startSelect.appendChild(new Option(t, t)));
+
+function updateEndTimes() {
+  const startValue = startSelect.value;
+  endSelect.innerHTML = "";
+  const filtered = timeOptions.filter(t => t > startValue);
+  filtered.forEach(t => endSelect.appendChild(new Option(t, t)));
+  if (filtered.length) endSelect.value = filtered[0];
+}
+startSelect.addEventListener("change", updateEndTimes);
+
+// ---------------------- Load Rooms ----------------------
+async function loadRooms() {
+  const res = await fetch(`${API_BASE}/rooms`);
+  const rooms = await res.json();
+  const roomSelect = document.getElementById("roomSelect");
+  roomSelect.innerHTML = "";
+  rooms.forEach(r => roomSelect.appendChild(new Option(r.room_name, r.room_id)));
+}
+
+// ---------------------- Edit Schedule Modal ----------------------
+const editModal = new bootstrap.Modal(document.getElementById("editScheduleModal"));
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("edit-schedule")) {
+    const btn = e.target;
+    document.getElementById("scheduleId").value = btn.dataset.id;
+    document.getElementById("dayOfWeek").value = btn.dataset.day;
+    startSelect.value = btn.dataset.start;
+    updateEndTimes();
+    endSelect.value = btn.dataset.end;
+    loadRooms().then(() => document.getElementById("roomSelect").value = btn.dataset.room);
+    editModal.show();
+  }
+});
+
+// ---------------------- Handle Form Submit ----------------------
+document.getElementById("editScheduleForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const scheduleId = document.getElementById("scheduleId").value;
+  const payload = {
+    day_of_week: document.getElementById("dayOfWeek").value,
+    start_time: document.getElementById("startTime").value,
+    end_time: document.getElementById("endTime").value,
+    room_id: document.getElementById("roomSelect").value
+  };
+  try {
+    const res = await fetch(`${API_BASE}/schedule/lecturer/${scheduleId}`, {
+      method: "PUT",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      editModal.hide();
+      loadLecturerSchedules();
+    } else {
+      alert(data.error || "Error updating schedule");
+    }
+  } catch(err) {
+    console.error(err);
+    alert("Network error");
+  }
+});
+
+// ---------------------- Initial Load ----------------------
+document.addEventListener("DOMContentLoaded", () => {
+  loadLecturerCourses();
+  loadLecturerSchedules();
+});
+</script>
 </body>
 </html>

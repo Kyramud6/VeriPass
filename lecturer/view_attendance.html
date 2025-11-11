@@ -40,10 +40,10 @@
 <script>
 const API_BASE = "http://13.214.116.232:5000/api";
 const urlParams = new URLSearchParams(window.location.search);
-const lecturerId = localStorage.getItem("lecturer_id");
+const lecturerId = JSON.parse(localStorage.getItem("lecturer") || "{}").lecturer_id;
 const courseId = urlParams.get("course_id");
 
-// --- Load Sessions for filter dropdown ---
+// --- Load Sessions for filter dropdown (all scheduled days) ---
 async function loadSessions() {
   try {
     const res = await fetch(`${API_BASE}/course/${courseId}/sessions`);
@@ -53,7 +53,7 @@ async function loadSessions() {
     const dropdown = document.getElementById("sessionFilter");
     sessions.forEach(s => {
       const option = document.createElement("option");
-      option.value = s.day_of_week;
+      option.value = s.day_of_week; // Send day_of_week to backend
       const start = s.start_time?.slice(0, 5) || '';
       const end = s.end_time?.slice(0, 5) || '';
       option.textContent = `${s.day_of_week} - ${s.room_name} (${start} - ${end})`;
@@ -68,7 +68,7 @@ async function loadSessions() {
 async function loadAttendance(dayFilter = "") {
   try {
     let url = `${API_BASE}/lecturer/${lecturerId}/courses/${courseId}/attendance`;
-    if (dayFilter) url += `?day=${encodeURIComponent(dayFilter)}`;
+    if (dayFilter) url += `?day=${encodeURIComponent(dayFilter)}`; // send day_of_week
 
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch attendance logs");
@@ -85,7 +85,7 @@ async function loadAttendance(dayFilter = "") {
     logs.forEach(log => {
       const tr = document.createElement("tr");
 
-      // --- Create Remarks View ---
+      // Remarks with inline edit
       const remarksCell = document.createElement("td");
       const remarksText = document.createElement("span");
       remarksText.textContent = log.remarks || "";
@@ -94,7 +94,6 @@ async function loadAttendance(dayFilter = "") {
       editBtn.textContent = "Edit";
       editBtn.className = "btn btn-sm btn-outline-primary ms-2";
 
-      // --- Edit Mode ---
       editBtn.addEventListener("click", () => {
         const input = document.createElement("input");
         input.type = "text";
@@ -120,7 +119,6 @@ async function loadAttendance(dayFilter = "") {
             if (!res.ok) throw new Error("Failed to update remark");
             alert("Remark updated successfully");
 
-            // Revert to normal view
             log.remarks = input.value;
             remarksCell.innerHTML = "";
             remarksText.textContent = log.remarks;
@@ -153,11 +151,10 @@ async function loadAttendance(dayFilter = "") {
   }
 }
 
-
 // --- Event Listeners ---
 document.getElementById("filterBtn").addEventListener("click", () => {
-  const selected = document.getElementById("sessionFilter").value;
-  loadAttendance(selected);
+  const selectedDay = document.getElementById("sessionFilter").value;
+  loadAttendance(selectedDay);
 });
 
 document.getElementById("exportBtn").addEventListener("click", () => {
