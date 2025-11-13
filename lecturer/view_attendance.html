@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Course Attendance Logs</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+       <link rel="stylesheet" href="dashboard_styles.css">
 </head>
 <body class="p-4 bg-light">
 
@@ -71,7 +72,7 @@ function renderLogsForDate(date) {
   section.classList.add("mb-4", "bg-white", "p-3", "rounded", "shadow-sm");
 
   const header = document.createElement("h5");
-  header.textContent = `Class Date: ${date} (${logsToRender[0].day_of_week || ""})`;
+  header.textContent = `Class Date: ${date}`;
   header.classList.add("mb-3", "text-primary");
   section.appendChild(header);
 
@@ -97,7 +98,7 @@ function renderLogsForDate(date) {
 
     const remarksCell = document.createElement("td");
     const remarksText = document.createElement("span");
-    remarksText.textContent = log.remarks || `${log.student_name} - Absent`;
+    remarksText.textContent = log.remarks || "";
     const editBtn = document.createElement("button");
     editBtn.textContent = "Edit";
     editBtn.className = "btn btn-sm btn-outline-primary ms-2";
@@ -119,11 +120,30 @@ function renderLogsForDate(date) {
 
       saveBtn.addEventListener("click", async () => {
         try {
-          const res = await fetch(`${API_BASE}/lecturer/attendance/${log.attendance_id}/remark`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ remarks: input.value })
-          });
+          let url = "";
+let method = "PUT";
+let body = {};
+
+if (log.attendance_id) {
+  // Normal update
+  url = `${API_BASE}/lecturer/attendance/${log.attendance_id}/remark`;
+  body = { remarks: input.value };
+} else {
+  // No attendance yet -> create a new one
+  url = `${API_BASE}/lecturer/attendance/0/remark`; // 0 acts as dummy ID
+  body = {
+    remarks: input.value,
+    student_id: log.student_id,
+    schedule_id: log.schedule_id
+  };
+}
+
+const res = await fetch(url, {
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body)
+});
+
           if (!res.ok) throw new Error("Failed to update remark");
           alert("Remark updated successfully");
 
