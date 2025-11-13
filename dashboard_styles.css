@@ -2,8 +2,8 @@
    GLOBAL STYLES & VARIABLES
    ======================================== */
 :root {
-  --primary-color: #86f8f2;
-  --primary-hover: #00b0f6;
+  --primary-color: #ac86f8;
+  --primary-hover: #0077f6;
   --secondary-color: #004df3;
   --success-color: #04ff00;
   --danger-color: #ff0000;
@@ -25,7 +25,7 @@
 
 body {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: linear-gradient(135deg, #66eae6 0%, #00ff66 100%);
+  background: linear-gradient(135deg, #66eae6 0%, #000000 100%);
   min-height: 100vh;
   color: #1e293b;
 }
@@ -1279,14 +1279,14 @@ select.form-select option:hover {
 }
 
 .btn-outline-primary {
-  border: 2px solid var(--primary-color);
-  color: var(--primary-color);
+  border: 2px solid rgba(0, 0, 0, 0);
+  color: #0c3aa5;
   background: white;
 }
 
 .btn-outline-primary:hover {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: white;
+  background: rgba(0, 0, 0, 0);
+  color: rgb(0, 0, 0);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(79, 70, 229, 0.3);
 }
@@ -1298,8 +1298,8 @@ select.form-select option:hover {
 }
 
 .btn-outline-secondary:hover {
-  background: #6c757d;
-  color: white;
+  background: #000000;
+  color: rgb(0, 0, 0);
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(108, 117, 125, 0.3);
 }
@@ -1508,7 +1508,7 @@ select.form-select option:hover {
 /* Body and background */
 body {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: linear-gradient(135deg, #66e3ea 0%, #02ff13 100%);
+  background: linear-gradient(135deg, #66e3ea 0%, #1302ff 100%);
   min-height: 100vh;
   color: #1e293b;
 }
@@ -1633,14 +1633,13 @@ body {
 }
 
 .btn-outline-primary {
-  border: 2px solid var(--primary-color);
-  color: var(--primary-color);
+  border: 2px solid gray;
+  color: gray;
   background: white;
 }
 
 .btn-outline-primary:hover {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: white;
+  color: rgb(0, 0, 0);
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(79, 70, 229, 0.3);
 }
