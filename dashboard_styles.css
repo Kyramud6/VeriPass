@@ -675,7 +675,7 @@ body.bg-light .card h3 {
 /* Course form input styling */
 #courseIdInput,
 #courseNameInput {
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: 500;
 }
 
@@ -705,7 +705,7 @@ body.bg-light .card h3 {
 #coursesTable tbody tr td:first-child {
   font-weight: 600;
   color: var(--primary-color);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 #coursesTable tbody tr td:nth-child(2) {
