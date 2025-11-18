@@ -163,8 +163,11 @@ const res = await fetch(url, {
     remarksCell.appendChild(editBtn);
 
     const checkIn = log.check_in_time && !isNaN(new Date(log.check_in_time).getTime())
-      ? log.check_in_time
-      : "-";
+  ? new Date(log.check_in_time).toLocaleTimeString("en-GB", {
+      hour12: false,
+      timeZone: "Asia/Kuala_Lumpur",
+    })
+  : "-";
 
     tr.innerHTML = `
       <td>${log.student_id_num || "-"}</td>

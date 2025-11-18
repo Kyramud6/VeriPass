@@ -38,7 +38,7 @@
       <div class="col-md-3">
   <div class="card text-center shadow-sm">
     <div class="card-body">
-      <h5>A1-CL13</h5>
+      <h5>A1-CL13 Multimedia Lab</h5>
       <p>Status: <span id="scanner1Status" class="badge bg-secondary">Loading...</span></p>
       <button id="scanner1Toggle" class="btn btn-sm btn-secondary" disabled>Loading...</button>
     </div>
@@ -48,7 +48,7 @@
 <div class="col-md-3">
   <div class="card text-center shadow-sm">
     <div class="card-body">
-      <h5>A1-CL16</h5>
+      <h5>A1-CL16 Networking Lab</h5>
       <p>Status: <span id="scanner2Status" class="badge bg-secondary">Loading...</span></p>
       <button id="scanner2Toggle" class="btn btn-sm btn-secondary" disabled>Loading...</button>
     </div>
@@ -142,8 +142,8 @@
         const res = await fetch ("http://13.214.116.232:5000/api/rooms");
         const room = await res.json();
 
-        const room101 = room.find(r => r.room_name === "A1-CL13");
-        const room102 = room.find(r => r.room_name === "A1-CL16");
+        const room101 = room.find(r => r.room_name === "A1-CL13 Multimedia Lab");
+        const room102 = room.find(r => r.room_name === "A1-CL16 Networking Lab");
 
         updateRoomstatus("scanner1Status",room101?.status);
         updateRoomstatus("scanner2Status",room102?.status);

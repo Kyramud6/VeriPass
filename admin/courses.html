@@ -33,6 +33,12 @@
               <option value="">-- Choose Lecturer --</option>
             </select>
           </div>
+            <div class="col-md-4">
+            <label class="form-label">Set a semester</label>
+            <select id="semesterSelect" class="form-select">
+              <option value="">-- Choose semester --</option>
+            </select>
+          </div>
           <div class="col-md-4 d-flex align-items-end">
             <button id="addCourseBtn" class="btn btn-primary w-100">Add Course</button>
           </div>
@@ -50,6 +56,7 @@
               <th>Course ID</th>
               <th>Course Name</th>
               <th>Lecturer</th>
+              <th>semester</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -112,6 +119,7 @@
             <td>${c.course_id}</td>
             <td>${c.course_name}</td>
             <td>${c.name || '-'}</td>
+            <td>${c.semester_name || '-'}</td>
             <td>
               <button class="btn btn-danger btn-sm" onclick="deleteCourse('${c.course_id}')">Delete</button>
             </td>
@@ -123,14 +131,33 @@
       }
     }
 
+    async function loadSemester() {
+  try {
+    const res = await fetch(`${API_BASE}/semester`);
+    const semesters = await res.json();
+    const semesterSelect = document.getElementById("semesterSelect");
+
+    semesters.forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.semester_id; 
+      opt.textContent = s.semester_name;
+      semesterSelect.appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error("Failed to load semesters:", err);
+  }
+}
+
     // Add course
     async function addCourse() {
       const course_id = document.getElementById("courseIdInput").value;
       const course_name = document.getElementById("courseNameInput").value;
       const lecturer_id = document.getElementById("lecturerSelect").value;
+      const semester_id = document.getElementById("semesterSelect").value;
 
-      if (!course_id || !course_name || !lecturer_id) {
-        alert("Please enter course id, course name and select a lecturer.");
+      if (!course_id || !course_name || !lecturer_id || !semester_id) {
+        alert("Please enter course id, course name, select a lecturer and a semester.");
         return;
       }
 
@@ -138,7 +165,7 @@
         const res = await fetch(`${API_BASE}/addcourses`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ course_id, course_name, lecturer_id })
+          body: JSON.stringify({ course_id, course_name, lecturer_id, semester_id })
         });
 
         if (res.ok) {
@@ -146,6 +173,7 @@
           document.getElementById("courseIdInput").value = "";
           document.getElementById("courseNameInput").value = "";
           document.getElementById("lecturerSelect").value = "";
+          document.getElementById("semesterSelect").value ="";
           loadCourses();
         } else {
           const data = await res.json();
@@ -177,6 +205,7 @@
     document.getElementById("addCourseBtn").addEventListener("click", addCourse);
 
     // Init
+    loadSemester();
     loadLecturers();
     loadCourses();
   </script>

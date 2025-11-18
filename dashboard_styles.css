@@ -843,14 +843,6 @@ select.form-select option:hover {
   padding-left: 2.5rem;
 }
 
-/* Course/Student/Lecturer ID visual indicator */
-.form-control[id*="Id"],
-.form-control[id*="id_num"] {
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
 /* ========================================
    RESPONSIVE ENHANCEMENTS FOR FORMS
    ======================================== */
