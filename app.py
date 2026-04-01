@@ -1,0 +1,795 @@
+from flask import Flask, request, jsonify
+import mysql.connector
+from flask_cors import CORS
+from datetime import datetime , timedelta
+import bcrypt
+
+app = Flask(__name__)
+CORS(app)
+
+# --- Database Connection ---
+def get_dbconnection():
+  return mysql.connector.connect(
+    host="enrollment.cha0gmii05a4.ap-southeast-1.rds.amazonaws.com",
+    user="admin",
+    password="qwaszx12",
+    database="EnrollmentSystem"
+)
+
+#--- Login Logic ---
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+    if not email or not password:
+        return jsonify({"error": "Missing email or password"}), 400
+
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        # check admins
+        cursor.execute("SELECT * FROM admins WHERE email = %s",(email,))
+        admin = cursor.fetchone()
+        if admin:
+            stored = admin.get("password")
+            # if stored is bcrypt hash
+            if stored and stored.startswith(("$2a$", "$2b$", "$2y$")):
+                if bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8")):
+                    return jsonify({"role": "admin", "admin_id": admin["admin_id"]}), 200
+            else:
+                # plaintext fallback -- upgrade by hashing
+                if password == stored:
+                    new_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                    cursor.execute("UPDATE admins SET password = %s WHERE admin_id = %s", (new_hash, admin["admin_id"]))
+                    db.commit()
+                    return jsonify({"role": "admin", "admin_id": admin["admin_id"]}), 200
+
+        # check lecturers
+        cursor.execute("SELECT * FROM lecturers WHERE email = %s", (email,))
+        lecturer = cursor.fetchone()
+        if lecturer:
+            stored = lecturer.get("password")
+            if stored and stored.startswith(("$2a$", "$2b$", "$2y$")):
+                if bcrypt.checkpw(password.encode("utf-8"), stored.encode("utf-8")):
+                    return jsonify({"role": "lecturer", "lecturer_id": lecturer["lecturer_id"]}), 200
+            else:
+                # plaintext fallback -- upgrade by hashing
+                if password == stored:
+                    new_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+                    cursor.execute("UPDATE lecturers SET password = %s WHERE lecturer_id = %s", (new_hash, lecturer["lecturer_id"]))
+                    db.commit()
+                    return jsonify({"role": "lecturer", "lecturer_id": lecturer["lecturer_id"]}), 200
+
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    finally:
+        cursor.close()
+        db.close()
+
+# ---Overview ---
+@app.route("/api/overview", methods=["GET"])
+def get_overview():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT COUNT(*) AS total_students FROM students")
+    student_row = cursor.fetchone()
+    student_count = student_row["total_students"] if student_row else 0
+
+    cursor.execute("SELECT COUNT(*) AS total_lecturer FROM lecturers")
+    lecturer_row = cursor.fetchone()
+    lecturer_count = lecturer_row["total_lecturer"] if lecturer_row else 0
+
+    cursor.close()
+    db.close()
+
+    return jsonify({
+        "total_students": student_count,
+        "total_lecturer": lecturer_count
+    })
+
+# ---Function to track the scanner ---
+@app.route("/api/rooms", methods = ["GET"])
+def roomstatus ():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary= True)
+    cursor.execute ("SELECT room_id, room_name, status FROM rooms")
+    rooms = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return jsonify(rooms)
+
+# --- Update room status ---
+@app.route("/api/rooms/<int:room_id>/status",methods=["PUT"])
+def roomupdate(room_id):
+    data = request.get_json()
+    newstatus = data.get("status")
+    
+    if newstatus not in ["online", "offline"]:
+       return jsonify({"error":"Invalid status"}), 400
+
+    db = get_dbconnection()
+    cursor = db.cursor()
+
+    try:
+       cursor.execute("UPDATE rooms SET status = %s WHERE room_id = %s",(newstatus, room_id))
+       db.commit()
+       return jsonify({"message":"f'Room{room_id} set to {newstatus}"}),200
+    except Exception as e:
+       db.rollback()
+       return jsonify({"error": str(e)}), 500
+    finally:
+       cursor.close()
+       db.close()
+
+# ---Function to get schedule ---
+@app.route("/api/schedule", methods=["GET"])
+def get_schedule():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    query = """
+        SELECT 
+            s.schedule_id,
+            c.course_name,
+            s.day_of_week,
+            s.start_time,
+            s.end_time,
+            r.room_name,
+            s.status
+        FROM schedule s
+        JOIN courses c ON s.course_id = c.course_id
+        JOIN rooms r ON s.room_id = r.room_id
+        ORDER BY 
+            FIELD(s.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'),
+            s.start_time
+    """
+
+    cursor.execute(query)
+    schedule = cursor.fetchall()
+    
+
+    for s in schedule:
+        s["start_time"] = str(s["start_time"])
+        s["end_time"] = str(s["end_time"])
+
+    cursor.close()
+    db.close()
+
+    return jsonify(schedule)
+
+
+# --- Function to add new schedule ---
+@app.route("/api/schedule", methods =["POST"])
+def add_schedule():
+   data = request.get_json()
+   course_id = data.get("course_id")
+   day_of_week = data.get("day_of_week")
+   start_time = data.get("start_time")
+   end_time = data.get("end_time")
+   room_id = data.get("room_id")
+
+   db = get_dbconnection()
+   cursor = db.cursor()
+
+   try:
+      cursor.execute("""
+          SELECT * FROM schedule
+          WHERE course_id = %s AND day_of_week = %s
+      """,(course_id, day_of_week))
+      if cursor.fetchone():
+          return jsonify({"error":"This course already added in the schedule on that day."}), 400
+
+    # Check if same room are overlapping
+      cursor.execute("""
+          SELECT * FROM schedule
+          WHERE room_id = %s AND day_of_week =%s
+          AND (
+               (start_time <%s AND end_time >%s)
+               OR (start_time >=%s AND start_time <%s)
+               OR (end_time > %s AND end_time <=%s)
+          )
+       """,(room_id, day_of_week, end_time, start_time, start_time, end_time, start_time, end_time))
+      if cursor.fetchone():
+          return jsonify({"error":"Room is already booked during that time."}), 400
+       # Insert new schedule if no errors
+      cursor.execute("""
+            INSERT INTO schedule (course_id, day_of_week, start_time, end_time, room_id)
+            VALUES (%s,%s,%s,%s,%s)
+         """, (course_id, day_of_week, start_time, end_time, room_id))
+      db.commit()
+
+      return jsonify({"message":"Schedule added successfully"}), 201
+   except Exception as e:
+      print("Error adding schedule",e)
+      return jsonify({"error", str(e)}), 500
+   finally:
+      cursor.close()
+      db.close()
+     
+
+
+
+   query= """
+    INSERT INTO schedule (course_id, day_of_week, start_time, end_time, room_id)
+        VALUES (%s, %s, %s, %s, %s)
+    """
+   cursor.execute(query, (course_id, day_of_week, start_time, end_time, room_id))
+   db.commit()
+
+   cursor.close()
+   db.close()
+
+   return jsonify({"message": "Schedule added successfully"}), 201 
+
+# ---Function to get course as dropdown ---
+@app.route("/api/courses", methods=["GET"])
+def get_course_selection():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT course_id, course_name FROM courses ORDER BY course_id")
+    courses = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+    return jsonify(courses)
+
+# ---Function to get room as dropdown ---
+@app.route("/api/rooms", methods=["GET"])
+def get_rooms():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    query = "SELECT room_id, room_name FROM rooms"
+    cursor.execute(query)
+    rooms = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+    return jsonify(rooms)
+
+# ---Helper function: fetching log to dashboard ---
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT log_id, student_id, student_name, course_id, room_id, reason, timestamp, status
+        FROM attendance_logs
+        ORDER BY timestamp DESC
+        LIMIT 150
+    """)
+    logs = cursor.fetchall()
+    cursor.close()
+    db.close()
+
+    return jsonify(logs)
+
+# --- Edit button for schedule ---
+@app.route("/api/schedule/<int:schedule_id>/status", methods=["PUT"])
+def updateschedulestatus(schedule_id):
+    data = request.get_json()
+    newstatus = data.get("status")
+
+    if newstatus not in ["active", "inactive"]:
+        return jsonify({"error": "Invalid status value"}), 400
+
+    db = get_dbconnection()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("UPDATE schedule SET status = %s WHERE schedule_id = %s", (newstatus, schedule_id))
+        db.commit()
+        cursor.close()
+        db.close()
+        return jsonify({"message": "Schedule status updated successfully"})
+    except Exception as e:
+        db.rollback()
+        print("Error updating schedule:", e)
+        cursor.close()
+        db.close()
+        return jsonify({"error": str(e)}), 500
+
+
+# --- Delete Button Function ---
+@app.route("/api/schedule/<int:schedule_id>",methods=["DELETE"])
+def deleteschedule(schedule_id):
+    db = get_dbconnection()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("DELETE FROM schedule WHERE schedule_id = %s",(schedule_id,))
+        db.commit()
+        return jsonify({"message":"Schedule deleted"}),200
+    except Exception as e:
+        db.rollback()
+        print("Error deleting schedule");
+        return jsonify({"error" : str(e)}), 500
+    finally:
+        cursor.close()
+        db.close()
+
+
+# ---Student Page---
+# ---Get student list ---
+@app.route("/api/students", methods=["GET"])
+def getstudent():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM students ORDER BY student_id ASC")
+    students = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return jsonify(students)
+
+
+#--- Add student button ---
+@app.route("/api/students", methods=["POST"])
+def addstudent():
+    data = request.get_json()
+    student_id_num = data.get("student_id_num")
+    name = data.get("name")
+    card_uid = data.get("card_uid")
+
+    if not student_id_num or not name:
+        return jsonify({"error": "Student ID and Name are required"}), 400
+
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT * FROM students WHERE student_id_num = %s OR name =%s OR card_uid =%s", (student_id_num, name, card_uid))
+        existing = cursor.fetchone()
+        cursor.fetchall()
+
+        if existing: 
+            if existing["student_id_num"] == student_id_num:
+               return jsonify({"error":f"Student ID '{student_id_num}' already exist"}),400
+            elif existing["card_uid"] == card_uid and card_uid:
+               return jsonify({"error":f"Card UID '{card_uid}' already registered"}),400
+            elif existing["name"] == name:
+               return jsonify({"error":f"Student '{name}' already exists."}),400 
+
+        cursor.execute(
+            "INSERT INTO students (student_id_num, name, card_uid) VALUES (%s, %s, %s)",
+             (student_id_num , name, card_uid)
+        )
+        db.commit()
+        return jsonify({"message":"Student added"}), 201 
+    except Exception as e:
+        db.rollback()
+        print("Error adding student", e)
+        return jsonify({"error": str(e)}),500
+    finally:
+        cursor.close()
+        db.close()
+
+#--- Update student UID ---
+@app.route("/api/students/<int:student_id>", methods=["PUT"])
+def updatestudent(student_id):
+    data = request.get_json()
+    studentid = data.get("student_id")
+    name = data.get("name")
+    card_uid = data.get("card_uid")
+
+    db = get_dbconnection()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE students
+            SET name = %s, card_uid = %s
+            WHERE student_id = %s
+        """, (name, card_uid, student_id))
+        db.commit()
+        return jsonify({"message": "Student updated"}), 201
+
+    except Exception as e:
+        db.rollback()
+        print("Error updating student:", e)
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        db.close()
+
+
+#--- Delete student ---
+@app.route("/api/students/<int:student_id>", methods=["DELETE"])
+def deletestudent(student_id):
+    db = get_dbconnection()
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM students WHERE student_id = %s", (student_id,))
+        db.commit()
+        return jsonify({"message" : "Student deleted from record"})
+    except Exception as e:
+        db.rollback()
+        print("Error deleting student:", e)
+        return jsonify({"error" : str(e)}), 500
+    finally:
+        cursor.close()
+        db.close()
+
+# --- Course Section ---
+# --- Course Display ---
+@app.route("/api/get_courses",methods=["GET"])
+def get_courses():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("""
+      SELECT c.course_id, c.course_name, l.name
+      FROM courses c
+      JOIN lecturers l ON c.lecturer_id = l.lecturer_id
+      ORDER BY c.course_id ASC
+    """)
+    courses = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return jsonify (courses)
+
+# Get all lecturers
+@app.route("/api/displaylecturers", methods=["GET"])
+def get_lecturers():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT lecturer_id, name
+        FROM lecturers
+        ORDER BY name ASC
+    """)
+    lecturers = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return jsonify(lecturers)
+
+# --- Add course ---
+@app.route("/api/addcourses",methods=["POST"])
+def add_course():
+    data = request.get_json()
+    course_id = data.get("course_id")
+    course_name = data.get("course_name")
+    lecturer_id = data.get("lecturer_id")
+    if not course_id or not course_name or not lecturer_id:
+       return jsonify({"error":"Course id, Course name and lecturer required"}), 400
+    db = get_dbconnection()
+    cursor = db.cursor()
+    try:
+       cursor.execute("SELECT * FROM courses WHERE course_name = %s",(course_name,))
+       existing_course = cursor.fetchone()
+       if existing_course:
+          return jsonify({"error":" Course already exists"}),400   
+
+       cursor.execute("INSERT INTO courses (course_id, course_name, lecturer_id) VALUES (%s, %s, %s)", 
+                     (course_id, course_name, lecturer_id))
+       db.commit()
+       return jsonify({"message":"Course added successfully"}), 201
+    except Exception as e:
+       db.rollback()
+       return jsonify({"error": str(e)}), 500
+    finally: 
+       cursor.close()
+       db.close()
+
+# --- Delete a course ---
+@app.route("/api/delete_courses/<course_id>", methods=["DELETE"])
+def delete_course(course_id):
+    db = get_dbconnection()
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM courses WHERE course_id = %s", (course_id,))
+        db.commit()
+        return jsonify({"message": "Course deleted successfully"})
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        db.close()
+
+# --- Enrollment Page ---
+# --- Enrollment display ---
+@app.route("/api/enrollments",methods=["GET"])
+def enrollment():
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("""
+         SELECT e.enrollment_id , s.student_id_num, s.name, c.course_id, c.course_name
+         FROM enrollments e
+         JOIN students s ON e.student_id = s.student_id
+         JOIN courses c ON e.course_id = c.course_id
+         ORDER BY e.enrollment_id ASC
+         """)
+    enrollments = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return jsonify(enrollments)
+
+# --- Add Enrollment for student ---
+@app.route("/api/enrollments", methods=["POST"])
+def addenrollment():
+    data = request.get_json()
+    student_id = data.get("student_id")
+    course_id = data.get("course_id")
+
+    if not student_id or not course_id:
+        return jsonify({"error": "Missing student id or course id"}), 400
+
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    try:
+        # ✅ Fetch all results before doing INSERT
+        cursor.execute(
+            "SELECT 1 FROM enrollments WHERE student_id = %s AND course_id = %s",
+            (student_id, course_id)
+        )
+        exists = cursor.fetchall()  # <-- important: fetch all, even if just one row
+
+        if exists:
+            return jsonify({"error": "Student already enrolled in this course"}), 400
+
+        cursor.execute(
+            "INSERT INTO enrollments (student_id, course_id) VALUES (%s, %s)",
+            (student_id, course_id)
+        )
+        db.commit()
+
+        return jsonify({"message": "Enrollment added successfully"}), 201
+
+    except Exception as e:
+        db.rollback()
+        print("Error:", e)
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        db.close()
+    
+# --- Delete Enrollment ---
+@app.route("/api/enrollments/<int:enrollment_id>",methods = ["DELETE"])
+def delete_enrollment(enrollment_id):
+    db = get_dbconnection()
+    cursor = db.cursor()
+    try:
+       cursor.execute("DELETE FROM enrollments WHERE enrollment_id = %s", (enrollment_id,))
+       db.commit()
+       return jsonify({"message":"Delete enrollment"}), 200
+    except Exception as e:
+       db.rollback()
+       return jsonify ({"Error": str (e)}),500
+    finally:
+       cursor.close()
+       db.close()
+
+#--- Lecturer Page logic ---
+# --- Lecturer get courses ---
+@app.route("/api/lecturer/course",methods=["POST"])
+def get_lecturercourse():
+    data = request.get_json()
+    lecturer_id = data.get("lecturer_id")
+    if not lecturer_id:
+       return jsonify({"error":"Missing lecturer id"}),400
+
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("""
+           SELECT course_id, course_name
+           FROM courses
+           WHERE lecturer_id =%s
+           ORDER BY course_id ASC
+    """,(lecturer_id,))
+    courses = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return jsonify(courses) 
+
+# --- Lecturer get the view student in their course ---
+@app.route ("/api/lecturer/course/<string:course_id>/students", methods=["GET"])
+def get_student_bycourse(course_id):
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+              SELECT s.student_id, s.name, s.card_uid
+              FROM enrollments e
+              JOIN students s ON e.student_id = s.student_id
+              WHERE e.course_id = %s
+              ORDER BY s.student_id ASC 
+        """, (course_id,))
+        students = cursor.fetchall()
+        return jsonify(students), 200
+    except Exception as e:
+        print ("Error fetching student", e)
+        return jsonify({"error": str(e)}),500
+    finally:
+        cursor.close()
+        db.close()        
+
+# --- Lecturer course session filter ---
+@app.route("/api/course/<string:course_id>/sessions",methods=["GET"])
+def get_course_session(course_id):
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    try:    
+        cursor.execute("""
+          SELECT s.schedule_id, s.day_of_week, s.start_time, s.end_time, r.room_name
+          FROM schedule s
+          JOIN rooms r ON s.room_id = r.room_id
+          WHERE LOWER(s.course_id) = LOWER(%s)
+        """,(course_id,))
+        sessions = cursor.fetchall()
+        for s in sessions:
+            if isinstance(s["start_time"], timedelta):
+                s["start_time"] = str(s["start_time"])
+            if isinstance(s["end_time"], timedelta):
+                s["end_time"] = str(s["end_time"])
+
+        return jsonify(sessions), 200
+    except Exception as e:
+        print("Error fecthing session:" , e)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cursor.close()
+        db.close()
+
+# --- Lecturer view the attendance logs by course ---
+@app.route("/api/lecturer/<int:lecturer_id>/courses/<string:course_id>/attendance",methods=["GET"])
+def get_attendance(lecturer_id, course_id):
+    date_filter = request.args.get("date")
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    try:
+       cursor.execute("""
+           SELECT
+           al.log_id,
+           al.student_id,
+           al.student_name,
+           al.status,
+           COALESCE(r.room_name, al.room_id) AS room_name,
+           al.timestamp,
+           al.course_id
+           FROM attendance_logs al
+           LEFT JOIN rooms r ON al.room_id = r.room_name
+           JOIN courses c ON al.course_id = c.course_id
+           WHERE c.lecturer_id = %s AND  al.course_id = %s
+           ORDER BY al.timestamp DESC
+        """, (lecturer_id, course_id))
+
+       data = cursor.fetchall()
+       return jsonify(data)
+    except Exception as e:
+        print("Error:",e)
+        return jsonify({"error":str(e)})
+    finally:
+        cursor.close()
+        db.close()        
+   
+# --- Helper function: log every attempt ---
+def log_attempt(student_id, student_name, course_id, room_id, reason, status, card_uid):
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT room_name FROM rooms WHERE room_id =%s" , (room_id,))
+    room = cursor.fetchone()
+    room_name = room["room_name"] if room else str(room_id)
+    cursor.execute("SET time_zone = '+08:00';")
+    query = """
+        INSERT INTO attendance_logs
+        (student_id, student_name, course_id, room_id, reason, timestamp, status, card_uid)
+        VALUES (%s, %s, %s, %s, %s, NOW(),%s ,%s )
+    """
+    cursor.execute(query, (student_id, student_name, course_id, room_name, reason, status, card_uid))
+    db.commit()
+    cursor.close()
+    
+
+# --- RFID Check Endpoint ---
+@app.route('/check_rfid', methods=['POST'])
+def check_rfid():
+    data = request.get_json()
+    raw_uid = data.get("card_uid", "")
+    room_id = data.get("room_id")
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute ("SELECT status,room_name FROM rooms WHERE room_id =%s", (room_id,))
+    room = cursor.fetchone()
+
+    # --- Normalize UID ---
+    card_uid = raw_uid.replace(" ", "").upper()
+    db = get_dbconnection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT status FROM rooms WHERE room_id = %s" , (room_id,))
+    room = cursor.fetchone()
+
+    if not room:
+          log_attempt(None, None, None, room_id, "denied", "Invalid room ID", None)
+          cursor.close()
+          return jsonify({"status":"denied","reason":"Invalid room ID"}),403
+
+    if room["status"] == "offline":
+          log_attempt(None,None,None,room_id,"denied","Room is offline", None)
+          cursor.close()
+          return jsonify({"status":"denied","reason":"Room is offline"}), 403
+
+    # 1. Find student by UID
+    cursor.execute("SELECT student_id, name FROM students WHERE card_uid = %s", (card_uid,))
+    student = cursor.fetchone()
+
+    if not student:
+        status = "denied"
+        log_attempt(None, None, None, room_id, "UID not registered",status,None)
+        return jsonify({"status": "denied", "reason": "UID not registered"}), 403
+
+    student_id = student["student_id"]
+    student_name = student["name"]
+
+    # 2. Get today and current time
+    today = datetime.now().strftime("%A")  # e.g., Tuesday
+    current_time = datetime.now().time()
+
+    # 3. Get student’s schedules for today
+    query = """
+        SELECT s.schedule_id, s.start_time, s.end_time, s.room_id, c.course_id, c.course_name, r.room_name
+        FROM enrollments e
+        JOIN courses c ON e.course_id = c.course_id
+        JOIN schedule s ON c.course_id = s.course_id
+        JOIN rooms r ON s.room_id = r.room_id
+        WHERE e.student_id = %s AND s.day_of_week = %s
+    """
+    cursor.execute(query, (student_id, today))
+    schedules = cursor.fetchall()
+    cursor.close()
+
+    # 4. Check schedules for current time & room
+    today_date = datetime.now().date()
+    current_time = datetime.now().time()
+    current_dt = datetime.combine(today_date, current_time)
+
+    status = "denied"
+    reason = "No scheduled class in this room today"
+    found_match = False
+
+    for schedule in schedules:
+        start_time = datetime.strptime(str(schedule["start_time"]), "%H:%M:%S").time()
+        end_time = datetime.strptime(str(schedule["end_time"]), "%H:%M:%S").time()
+        start_dt = datetime.combine(today_date, start_time)
+        end_dt = datetime.combine(today_date, end_time)
+
+        if str(schedule["room_id"]) == str(room_id):
+           if start_dt <= current_dt <= end_dt:
+              found_match = True
+              status = "granted"
+              reason = f"Welcome [{student_name}] ({status})"
+              log_attempt(student_id, student_name, schedule["course_id"], room_id, reason, status, card_uid)
+              return jsonify({
+                   "status": status,
+                   "reason": reason,
+                   "student": student_name,
+                   "course": schedule["course_name"],
+                   "room": schedule.get("room_name", schedule["room_id"])
+                 }), 200
+           else:
+                found_match = True
+                status = "denied"
+                reason = "Access Denied :Not within class time"
+                log_attempt(student_id, student_name, schedule["course_id"], room_id, reason, status, card_uid)
+                return jsonify({"status": status, "reason": reason}), 403
+
+            #      If no matching schedule was found
+    if not found_match:
+      log_attempt(student_id, student_name, None, room_id, reason, status, card_uid)
+      return jsonify({"status": status, "reason": reason}), 403
+
+
+    # 5. If no schedule matched the room
+    log_attempt(student_id, student_name, None, room_id,
+            "No scheduled class in this room today", "denied", card_uid)
+    cursor.close()
+    db.close()
+    return jsonify({"status": "denied", "reason": "No scheduled class in this room today"}), 403	
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
